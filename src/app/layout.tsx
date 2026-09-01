@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "ToolForge" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
   },
   openGraph: {
     title: "ToolForge — Every Tool You Need, 100% Private",

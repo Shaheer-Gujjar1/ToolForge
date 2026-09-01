@@ -6,6 +6,7 @@ import { SiteHeader } from '@/components/site-header'
 import { SiteFooter } from '@/components/site-footer'
 import { HomeView } from '@/components/home-view'
 import { ToolPage } from '@/components/tool-page'
+import { CommandPalette } from '@/components/command-palette'
 import { useHashRoute, parseRoute } from '@/lib/use-hash-route'
 import { getTool } from '@/lib/tools'
 import { FileQuestion } from 'lucide-react'
@@ -14,22 +15,55 @@ import { Button } from '@/components/ui/button'
 export default function Home() {
   const { path, navigate } = useHashRoute()
   const parsed = parseRoute(path)
+  const [commandOpen, setCommandOpen] = React.useState(false)
+
+  // Global keyboard shortcut for Command Palette (Cmd+K / Ctrl+K)
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  const handleSelectTool = (toolId: string) => {
+    navigate(`/${toolId}`)
+  }
+
+  const handleNavigateHome = (categoryId?: string) => {
+    if (categoryId) {
+      navigate(`/category/${categoryId}`)
+    } else {
+      navigate('/')
+    }
+  }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader current={path} onNavigate={navigate} />
+    <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-primary/20 selection:text-primary">
+      <SiteHeader
+        current={path}
+        onNavigate={navigate}
+        onOpenSearch={() => setCommandOpen(true)}
+      />
 
       <main className="flex-1">
         <AnimatePresence mode="wait">
           {parsed.route === 'home' || !parsed.toolId ? (
             <motion.div
-              key="home"
+              key={`home-${parsed.category || 'all'}`}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <HomeView onNavigate={navigate} />
+              <HomeView
+                onNavigate={navigate}
+                categoryFilter={parsed.category}
+                onOpenSearch={() => setCommandOpen(true)}
+              />
             </motion.div>
           ) : (
             <motion.div
@@ -46,6 +80,14 @@ export default function Home() {
       </main>
 
       <SiteFooter />
+
+      {/* Global Command Palette */}
+      <CommandPalette
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        onSelectTool={handleSelectTool}
+        onNavigateHome={handleNavigateHome}
+      />
     </div>
   )
 }
@@ -71,7 +113,7 @@ function ToolRouteView({
         <p className="mt-2 text-muted-foreground">
           We couldn’t find a tool called “{toolId}”.
         </p>
-        <Button className="mt-6" onClick={() => onNavigate('/')}>
+        <Button className="mt-6 cursor-pointer" onClick={() => onNavigate('/')}>
           Back to all tools
         </Button>
       </div>

@@ -10,10 +10,12 @@ import {
   ChevronRight,
   Loader2,
   Cpu,
+  Star,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { useUserPreferences } from '@/lib/user-preferences'
 import { PrivacyBadge } from '@/components/privacy-badge'
 import { Dropzone, type QueuedFile } from '@/components/dropzone'
 import { ProcessingPanel } from '@/components/processing-panel'
@@ -203,6 +205,13 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
   const related = tools
     .filter((t) => t.category === tool.category && t.id !== tool.id)
     .slice(0, 4)
+
+  const { isFavorite, toggleFavorite, recordRecent } = useUserPreferences()
+
+  React.useEffect(() => {
+    recordRecent(tool.id)
+  }, [tool.id, recordRecent])
+
 
   const cat = categoryMeta(tool.category as ToolCategory)
 
@@ -621,7 +630,7 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
       }
       const wmLayers: Record<string, unknown>[] = []
       for (const layer of wmRes?.layers ?? []) {
-        const base = { ...layer, logo: null, logoUrl: '' }
+        const base: Record<string, unknown> = { ...layer, logo: null, logoUrl: '' }
         if (layer.type === 'image' && layer.logo) {
           try {
             base.logoData = await layer.logo.arrayBuffer()
@@ -644,7 +653,7 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
       }
       const wmPdfLayers: Record<string, unknown>[] = []
       for (const layer of wmPdfRes?.layers ?? []) {
-        const base = { ...layer, logo: null, logoUrl: '' }
+        const base: Record<string, unknown> = { ...layer, logo: null, logoUrl: '' }
         if (layer.type === 'image' && layer.logo) {
           try {
             base.logoData = await layer.logo.arrayBuffer()
@@ -821,6 +830,27 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
     }
   }
 
+  // Keyboard shortcut: Cmd/Ctrl + Enter to run, Escape to back
+  React.useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        if (runEnabled) {
+          e.preventDefault()
+          void handleProcess()
+        }
+      } else if (e.key === 'Escape') {
+        if (
+          document.activeElement?.tagName !== 'INPUT' &&
+          document.activeElement?.tagName !== 'TEXTAREA'
+        ) {
+          onBack()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [runEnabled, onBack])
+
   // Merge file handlers
   const handleMergeReorder = (reordered: MergeFile[]) => {
     setMergeOrder(reordered.map((f) => f.id))
@@ -861,18 +891,23 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
       {/* Breadcrumb / back */}
-      <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 transition-colors hover:bg-secondary hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4" />
           All tools
         </button>
         <ChevronRight className="h-3.5 w-3.5" />
-        <span>{cat?.name}</span>
+        <button
+          onClick={() => onNavigate(`/category/${tool.category}`)}
+          className="rounded-full px-2 py-0.5 transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+        >
+          {cat?.name}
+        </button>
         <ChevronRight className="h-3.5 w-3.5" />
-        <span className="text-foreground">{tool.name}</span>
+        <span className="font-semibold text-foreground">{tool.name}</span>
       </div>
 
       {/* Header */}
@@ -902,6 +937,21 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => toggleFavorite(tool.id)}
+            className={cn(
+              'rounded-full h-8 px-3 gap-1.5 text-xs font-medium cursor-pointer',
+              isFavorite(tool.id)
+                ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Star className={cn('h-3.5 w-3.5', isFavorite(tool.id) && 'fill-amber-500')} />
+            <span>{isFavorite(tool.id) ? 'Pinned' : 'Pin tool'}</span>
+          </Button>
+
           {tool.batch && (
             <Badge variant="secondary" className="rounded-full">
               <Layers className="mr-1 h-3 w-3" /> Batch
@@ -1152,16 +1202,21 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
           </p>
           <Button
             size="lg"
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto font-semibold gap-2 shadow-xs cursor-pointer"
             disabled={!runEnabled}
             onClick={handleProcess}
           >
             {(processing.isWorking || preparing) ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Wand2 className="mr-2 h-4 w-4" />
+              <Wand2 className="h-4 w-4" />
             )}
-            {buttonLabel}
+            <span>{buttonLabel}</span>
+            {runEnabled && !processing.isWorking && !preparing && (
+              <kbd className="hidden sm:inline-flex h-5 select-none items-center rounded bg-primary-foreground/20 px-1.5 font-mono text-[10px] font-normal text-primary-foreground">
+                ⌘↵
+              </kbd>
+            )}
           </Button>
         </div>
 

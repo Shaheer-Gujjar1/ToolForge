@@ -35,9 +35,12 @@ export function useHashRoute(): { path: string; navigate: (to: string) => void }
   return { path, navigate }
 }
 
-export function parseRoute(path: string): { route: 'home' | 'tool'; toolId?: string } {
+export function parseRoute(path: string): { route: 'home' | 'tool'; toolId?: string; category?: string } {
   const clean = path.replace(/^\/+/, '').trim()
   if (!clean) return { route: 'home' }
   const segments = clean.split('/')
+  if (segments[0] === 'category' && segments[1]) {
+    return { route: 'home', category: segments[1] }
+  }
   return { route: 'tool', toolId: segments[0] }
 }

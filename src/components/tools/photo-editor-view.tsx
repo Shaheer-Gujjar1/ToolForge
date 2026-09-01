@@ -935,7 +935,7 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
         prev.map((o) => {
           if (o.id !== d.id) return o
           if (o.kind === 'stroke') return { ...o, points: d.orig.kind === 'stroke' ? d.orig.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) : o.points }
-          if (o.kind === 'shape') return { ...o, x: d.orig.x + dx, y: d.orig.y + dy }
+          if (d.orig.kind === 'stroke') return o
           return { ...o, x: d.orig.x + dx, y: d.orig.y + dy }
         })
       )

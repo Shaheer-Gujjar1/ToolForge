@@ -1087,21 +1087,23 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
       key={id}
       onClick={() => (id === 'crop' ? enterCropMode() : setMode(id))}
       className={cn(
-        'flex flex-col items-center gap-1 rounded-lg px-2.5 py-2 text-[11px] font-medium transition-all',
-        mode === id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+        'flex flex-col items-center gap-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all active-push cursor-pointer',
+        mode === id
+          ? 'bg-primary text-primary-foreground shadow-2xs'
+          : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
       )}
     >
       <Icon className="h-4 w-4" />
-      {label}
+      <span>{label}</span>
     </button>
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-secondary/40 p-1.5">
-        <div className="flex flex-wrap items-center">
-          {modeBtn('adjust', 'Filter & light', SlidersHorizontal)}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card/70 p-2 glass-card shadow-2xs">
+        <div className="flex flex-wrap items-center gap-1">
+          {modeBtn('adjust', 'Filter & Light', SlidersHorizontal)}
           {modeBtn('crop', 'Crop', CropIcon)}
           {modeBtn('transform', 'Transform', RotateCw)}
           {modeBtn('resize', 'Resize', Scaling)}
@@ -1110,17 +1112,17 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
           {modeBtn('shapes', 'Shapes', Shapes)}
           {modeBtn('frame', 'Frame', FrameIcon)}
         </div>
-        <div className="flex items-center gap-1 pr-1">
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={undo} disabled={histDepth.past === 0} title="Undo">
-            <Undo2 className="h-4 w-4" />
+        <div className="flex items-center gap-1.5 pr-1">
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg active-push cursor-pointer border-border/80" onClick={undo} disabled={histDepth.past === 0} title="Undo">
+            <Undo2 className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={redo} disabled={histDepth.future === 0} title="Redo">
-            <Redo2 className="h-4 w-4" />
+          <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg active-push cursor-pointer border-border/80" onClick={redo} disabled={histDepth.future === 0} title="Redo">
+            <Redo2 className="h-3.5 w-3.5" />
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-8 gap-1.5 px-2 text-xs"
+            className="h-8 gap-1.5 px-3 text-xs rounded-lg active-push cursor-pointer border-border/80"
             title="Discard all edits and start over"
             onClick={() => {
               if (!origRef.current) return
@@ -1130,7 +1132,7 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
               setResizeH(origRef.current.height)
             }}
           >
-            <RotateCcw className="h-3.5 w-3.5" /> Reset
+            <RotateCcw className="h-3.5 w-3.5" /> <span>Reset</span>
           </Button>
         </div>
       </div>
@@ -1138,9 +1140,9 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
       {/* Canvas stage */}
       <div
         ref={containerRef}
-        className="flex min-h-[240px] items-center justify-center overflow-hidden rounded-2xl border border-border/60 p-4"
+        className="flex min-h-[260px] items-center justify-center overflow-hidden rounded-2xl border-2 border-border/80 bg-muted/40 p-4 shadow-md glass-card"
         style={{
-          backgroundImage: 'repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%)',
+          backgroundImage: 'linear-gradient(45deg, rgba(128,128,128,0.12) 25%, transparent 25%), linear-gradient(-45deg, rgba(128,128,128,0.12) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(128,128,128,0.12) 75%), linear-gradient(-45deg, transparent 75%, rgba(128,128,128,0.12) 75%)',
           backgroundSize: '16px 16px',
         }}
       >
@@ -1210,13 +1212,13 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
       {/* Mode panels */}
       {mode === 'adjust' && (
         <div
-          className="space-y-4 rounded-2xl border border-border/70 bg-secondary/40 p-4"
+          className="space-y-4 rounded-2xl border border-border/80 bg-card/60 p-4 sm:p-5 glass-card shadow-2xs"
           onPointerDownCapture={() => {
             preSnapRef.current = snapshot()
           }}
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground">Filters:</span>
+            <span className="text-xs font-semibold text-muted-foreground font-mono">Filters:</span>
             {ADJ_PRESETS.map((p) => (
               <button
                 key={p.id}
@@ -1225,10 +1227,10 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
                   setAdj({ ...p.adj })
                 }}
                 className={cn(
-                  'rounded-lg border px-3 py-1.5 text-xs font-medium transition-all',
+                  'rounded-full px-3.5 py-1 text-xs font-semibold font-mono transition-all active-push cursor-pointer',
                   adj.brightness === p.adj.brightness && adj.contrast === p.adj.contrast && adj.saturation === p.adj.saturation && adj.sepia === p.adj.sepia && adj.blur === p.adj.blur
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/40'
+                    ? 'bg-primary text-primary-foreground shadow-2xs font-bold'
+                    : 'bg-secondary/80 text-secondary-foreground hover:bg-secondary border border-border/60'
                 )}
               >
                 {p.label}

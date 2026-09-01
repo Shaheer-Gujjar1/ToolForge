@@ -1,48 +1,51 @@
 'use client'
 
+import * as React from 'react'
+import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 export function Logo({ className }: { className?: string }) {
+  const [hovered, setHovered] = React.useState(false)
+
   return (
-    <span className={cn('inline-flex items-center gap-2', className)}>
-      <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className="h-5 w-5"
-          aria-hidden="true"
-        >
-          <path
-            d="M7 3h7l5 5v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
-            fill="currentColor"
-            fillOpacity="0.18"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M14 3v5h5"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M8.5 16.5v-3M8.5 13.5h2.2M14 16.5v-3M14 13.5h2"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-      <span className="flex flex-col leading-none">
-        <span className="text-[15px] font-semibold tracking-tight">
-          ToolForge
-        </span>
-        <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          All-in-One · Private
-        </span>
-      </span>
-    </span>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={cn(
+        'relative grid grid-cols-1 grid-rows-1 items-center h-10 sm:h-11 w-44 sm:w-52 cursor-pointer select-none overflow-visible',
+        className
+      )}
+    >
+      {/* 1st Base Logo - smoothly cross-fades out and in with bi-directional reverse animation */}
+      <motion.img
+        src="/Tool-Forge-Logo1.png"
+        alt="ToolForge Logo"
+        initial={false}
+        animate={{
+          opacity: hovered ? 0 : 1,
+        }}
+        transition={{
+          duration: 0.35,
+          ease: [0.2, 0, 0, 1],
+        }}
+        className="[grid-area:1/1] h-9 sm:h-10 w-auto max-w-[210px] object-left object-contain pointer-events-none"
+      />
+
+      {/* 2nd Hover Logo - smoothly unveils left-to-right on enter and retracts on leave */}
+      <motion.img
+        src="/Tool-Forge-Logo2.png"
+        alt="ToolForge Logo Hover"
+        initial={false}
+        animate={{
+          clipPath: hovered ? 'inset(0% 0% 0% 0%)' : 'inset(0% 100% 0% 0%)',
+          opacity: hovered ? 1 : 0,
+        }}
+        transition={{
+          duration: hovered ? 0.45 : 0.35,
+          ease: [0.2, 0, 0, 1],
+        }}
+        className="[grid-area:1/1] h-9 sm:h-10 w-auto max-w-[210px] object-left object-contain pointer-events-none"
+      />
+    </div>
   )
 }

@@ -95,7 +95,7 @@ export function ProcessingPanel({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="overflow-hidden rounded-2xl border border-border/70 bg-card"
+      className="overflow-hidden rounded-2xl border border-border/80 bg-card/90 glass-card"
     >
       {/* Header / overall */}
       <div className="border-b border-border/60 bg-secondary/40 p-5">

@@ -11,6 +11,9 @@ import {
   Loader2,
   Cpu,
   Star,
+  CheckCircle2,
+  X,
+  ArrowDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -266,6 +269,18 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
     () => files.map((f) => ({ id: f.id, file: f.file })),
     [files]
   )
+
+  const processingRef = React.useRef<HTMLDivElement>(null)
+
+  // Auto-scroll down smoothly to processing panel whenever processing starts or completes
+  React.useEffect(() => {
+    if (processing.status !== 'idle') {
+      const timer = setTimeout(() => {
+        processingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 80)
+      return () => clearTimeout(timer)
+    }
+  }, [processing.status])
 
   const canProcess =
     isHtmlToImage
@@ -891,47 +906,47 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
       {/* Breadcrumb / back */}
-      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <div className="mb-6 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card px-3 py-1.5 transition-all hover:border-primary/40 hover:text-foreground active-push cursor-pointer glass-card"
         >
-          <ArrowLeft className="h-4 w-4" />
-          All tools
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>All tools</span>
         </button>
-        <ChevronRight className="h-3.5 w-3.5" />
+        <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
         <button
           onClick={() => onNavigate(`/category/${tool.category}`)}
-          className="rounded-full px-2 py-0.5 transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+          className="rounded-full border border-border/80 bg-card px-3 py-1.5 transition-all hover:border-primary/40 hover:text-foreground active-push cursor-pointer glass-card"
         >
           {cat?.name}
         </button>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-semibold text-foreground">{tool.name}</span>
+        <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
+        <span className="font-semibold text-foreground px-1">{tool.name}</span>
       </div>
 
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
         className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex items-center gap-4">
           <span
             className={cn(
-              'grid h-14 w-14 shrink-0 place-items-center rounded-2xl ring-1',
+              'grid h-16 w-16 shrink-0 place-items-center rounded-2xl ring-1 shadow-xs',
               a.badge,
               a.ring
             )}
           >
-            <Icon className="h-7 w-7" />
+            <Icon className="h-8 w-8" />
           </span>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl text-foreground">
               {tool.name}
             </h1>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground leading-relaxed">
               {tool.description}
             </p>
           </div>
@@ -942,7 +957,7 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
             size="sm"
             onClick={() => toggleFavorite(tool.id)}
             className={cn(
-              'rounded-full h-8 px-3 gap-1.5 text-xs font-medium cursor-pointer',
+              'rounded-full h-8 px-3.5 gap-1.5 text-xs font-semibold cursor-pointer active-push border-border/80',
               isFavorite(tool.id)
                 ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400'
                 : 'text-muted-foreground hover:text-foreground'
@@ -953,15 +968,15 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
           </Button>
 
           {tool.batch && (
-            <Badge variant="secondary" className="rounded-full">
+            <Badge variant="secondary" className="rounded-full font-mono text-[10px] uppercase tracking-wider">
               <Layers className="mr-1 h-3 w-3" /> Batch
             </Badge>
           )}
           {tool.tag && (
-            <Badge className="rounded-full">{tool.tag}</Badge>
+            <Badge className="rounded-full font-mono text-[10px] uppercase tracking-wider">{tool.tag}</Badge>
           )}
           {preview && (
-            <Badge variant="outline" className="rounded-full border-amber-500/40 text-amber-600 dark:text-amber-400">
+            <Badge variant="outline" className="rounded-full border-amber-500/40 text-amber-600 dark:text-amber-400 font-mono text-[10px]">
               <Sparkles className="mr-1 h-3 w-3" /> Step {tool.step}
             </Badge>
           )}
@@ -977,7 +992,7 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-8 rounded-3xl border border-border/70 bg-card p-5 shadow-sm sm:p-7"
+        className="mt-8 rounded-2xl border border-border/80 bg-card/80 p-5 glass-card sm:p-7 shadow-xs"
       >
         {/* Hidden input for "add more files" (merge) */}
         <input
@@ -1184,25 +1199,29 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
         )}
 
         {/* Action bar */}
-        <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-5 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
-            {processing.isWorking
-              ? 'Running locally — your browser is doing the work.'
-              : cfg.mode === 'files'
-                ? files.length === 0
-                  ? 'Add files to begin.'
-                  : `${files.length} file${files.length > 1 ? 's' : ''} ready.`
-                : isHtmlToImage
-                  ? htmlImageConfig.html.trim()
-                    ? 'HTML ready — it will render exactly as previewed.'
-                    : 'Paste code or upload an .html file to begin.'
-                  : html.trim()
-                    ? 'HTML ready.'
-                    : 'Paste HTML to begin.'}
-          </p>
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/70 pt-6 sm:flex-row">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+            <span className={cn('h-2 w-2 rounded-full', runEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40')} />
+            <span>
+              {processing.isWorking
+                ? 'Processing locally in browser memory…'
+                : cfg.mode === 'files'
+                  ? files.length === 0
+                    ? 'Upload files above to begin'
+                    : `${files.length} file${files.length > 1 ? 's' : ''} queued and ready`
+                  : isHtmlToImage
+                    ? htmlImageConfig.html.trim()
+                      ? 'HTML ready to render'
+                      : 'Paste code or upload an HTML file'
+                    : html.trim()
+                      ? 'HTML template ready'
+                      : 'Paste HTML code to begin'}
+            </span>
+          </div>
+
           <Button
             size="lg"
-            className="w-full sm:w-auto font-semibold gap-2 shadow-xs cursor-pointer"
+            className="w-full sm:w-auto h-11 px-6 rounded-xl font-semibold gap-2.5 shadow-md shadow-primary/20 cursor-pointer active-push text-sm"
             disabled={!runEnabled}
             onClick={handleProcess}
           >
@@ -1213,7 +1232,7 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
             )}
             <span>{buttonLabel}</span>
             {runEnabled && !processing.isWorking && !preparing && (
-              <kbd className="hidden sm:inline-flex h-5 select-none items-center rounded bg-primary-foreground/20 px-1.5 font-mono text-[10px] font-normal text-primary-foreground">
+              <kbd className="hidden sm:inline-flex h-5 select-none items-center rounded-md bg-primary-foreground/20 px-1.5 font-mono text-[10px] font-medium text-primary-foreground">
                 ⌘↵
               </kbd>
             )}
@@ -1239,28 +1258,83 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
       </motion.div>
 
       {/* Processing panel */}
+      <div ref={processingRef} id="processing-panel-section" className="scroll-mt-20">
+        <AnimatePresence>
+          {processing.status !== 'idle' && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35 }}
+              className="mt-8"
+            >
+              <ProcessingPanel
+                items={processing.items}
+                status={processing.status}
+                overallProgress={processing.overallProgress}
+                concurrency={processing.concurrency}
+                isWorking={processing.isWorking}
+                hasResults={processing.hasResults}
+                onCancel={processing.cancel}
+                onReset={processing.reset}
+                onDownloadOne={processing.downloadOne}
+                onDownloadAll={processing.downloadAll}
+                preview={preview}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Floating Processing Status HUD for instant feedback */}
       <AnimatePresence>
         {processing.status !== 'idle' && (
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.3 }}
-            className="mt-6"
+            initial={{ opacity: 0, y: 24, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-auto"
           >
-            <ProcessingPanel
-              items={processing.items}
-              status={processing.status}
-              overallProgress={processing.overallProgress}
-              concurrency={processing.concurrency}
-              isWorking={processing.isWorking}
-              hasResults={processing.hasResults}
-              onCancel={processing.cancel}
-              onReset={processing.reset}
-              onDownloadOne={processing.downloadOne}
-              onDownloadAll={processing.downloadAll}
-              preview={preview}
-            />
+            <button
+              onClick={() => {
+                processingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }}
+              className={cn(
+                'flex items-center gap-2.5 rounded-full px-4 py-2.5 text-xs font-semibold shadow-2xl backdrop-blur-xl border glass-card transition-all active-push cursor-pointer',
+                processing.isWorking
+                  ? 'border-primary/50 bg-background/95 text-foreground ring-2 ring-primary/20'
+                  : processing.status === 'completed'
+                    ? 'border-emerald-500/50 bg-background/95 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/20'
+                    : 'border-destructive/50 bg-background/95 text-destructive ring-2 ring-destructive/20'
+              )}
+            >
+              {processing.isWorking ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span>Processing {Math.round(processing.overallProgress * 100)}%</span>
+                  <span className="text-muted-foreground font-mono text-[10px] flex items-center gap-0.5">
+                    · Jump to results <ArrowDown className="h-3 w-3" />
+                  </span>
+                </>
+              ) : processing.status === 'completed' ? (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Completed</span>
+                  <span className="text-muted-foreground font-mono text-[10px] flex items-center gap-0.5">
+                    · Download files <ArrowDown className="h-3 w-3" />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                  <span>Failed</span>
+                  <span className="text-muted-foreground font-mono text-[10px] flex items-center gap-0.5">
+                    · View errors <ArrowDown className="h-3 w-3" />
+                  </span>
+                </>
+              )}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

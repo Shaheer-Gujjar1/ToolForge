@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ImagePlus, Loader2, Scaling as ScalingIcon, X } from 'lucide-react'
+import { ImagePlus, Loader2, Scaling as ScalingIcon, X, Sparkles } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -138,8 +138,6 @@ export function ResizeImagesView({
       }
       img.onerror = () => {
         if (cancelled) return
-        // Preview failed (e.g. exotic format) — the worker surfaces a clear
-        // error for this file when Run is pressed.
         setMeta((prev) => ({
           ...prev,
           [f.id]: { url, width: 1, height: 1 },
@@ -180,22 +178,22 @@ export function ResizeImagesView({
   const settings = { mode, width, height, maintainAspect, noEnlarge, scale: scalePct / 100 }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Global settings */}
-      <div className="rounded-2xl border border-border/70 bg-secondary/40 p-4 sm:p-5">
-        <div className="mb-4 flex items-center gap-2 text-sm font-medium">
+      <div className="rounded-2xl border border-border/80 bg-card/60 p-4 sm:p-5 glass-card shadow-2xs space-y-4">
+        <div className="flex items-center gap-2 text-sm font-semibold tracking-tight border-b border-border/50 pb-2.5">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
             <ScalingIcon className="h-4 w-4" />
           </span>
-          Resize settings
+          <span>Resize Options</span>
         </div>
 
         {/* Mode toggle */}
-        <div className="mb-5 inline-flex rounded-xl border border-border/70 bg-card p-1">
+        <div className="inline-flex rounded-xl border border-border/70 bg-secondary/40 p-1">
           {(
             [
-              { v: 'pixels', label: 'By pixels' },
-              { v: 'percentage', label: 'By percentage' },
+              { v: 'pixels', label: 'By Dimensions (px)' },
+              { v: 'percentage', label: 'By Percentage (%)' },
             ] as { v: ResizeMode; label: string }[]
           ).map((m) => (
             <button
@@ -203,9 +201,9 @@ export function ResizeImagesView({
               type="button"
               onClick={() => setMode(m.v)}
               className={cn(
-                'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
+                'rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all active-push cursor-pointer',
                 mode === m.v
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-2xs font-bold'
                   : 'text-muted-foreground hover:text-foreground'
               )}
               aria-pressed={mode === m.v}
@@ -216,10 +214,10 @@ export function ResizeImagesView({
         </div>
 
         {mode === 'pixels' ? (
-          <div className="space-y-4">
+          <div className="space-y-4 pt-1">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="resize-width" className="text-sm font-medium">
+              <div className="space-y-1.5">
+                <Label htmlFor="resize-width" className="text-xs font-semibold text-foreground">
                   Width (px)
                 </Label>
                 <Input
@@ -229,12 +227,12 @@ export function ResizeImagesView({
                   max={20000}
                   value={width}
                   onChange={(e) => setWidth(Number(e.target.value))}
-                  className="w-full sm:w-[160px]"
+                  className="w-full sm:w-[160px] rounded-xl font-mono text-sm"
                   aria-label="Target width in pixels"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="resize-height" className="text-sm font-medium">
+              <div className="space-y-1.5">
+                <Label htmlFor="resize-height" className="text-xs font-semibold text-foreground">
                   Height (px)
                 </Label>
                 <Input
@@ -244,72 +242,70 @@ export function ResizeImagesView({
                   max={20000}
                   value={height}
                   onChange={(e) => setHeight(Number(e.target.value))}
-                  className="w-full sm:w-[160px]"
+                  className="w-full sm:w-[160px] rounded-xl font-mono text-sm"
                   aria-label="Target height in pixels"
                 />
               </div>
             </div>
-            <div className="flex flex-col gap-3">
-              <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+            <div className="flex flex-col gap-2.5 pt-1">
+              <label className="flex cursor-pointer items-center gap-2.5 text-xs font-medium text-foreground">
                 <Checkbox
                   checked={maintainAspect}
                   onCheckedChange={(v) => setMaintainAspect(v === true)}
                   aria-label="Maintain aspect ratio"
                 />
-                Maintain aspect ratio
-                <span className="text-xs text-muted-foreground">
-                  — each image fits inside the box, never stretched
+                <span>Maintain aspect ratio</span>
+                <span className="text-[11px] text-muted-foreground">
+                  (prevents image distortion)
                 </span>
               </label>
-              <label className="flex cursor-pointer items-center gap-2.5 text-sm">
+              <label className="flex cursor-pointer items-center gap-2.5 text-xs font-medium text-foreground">
                 <Checkbox
                   checked={noEnlarge}
                   onCheckedChange={(v) => setNoEnlarge(v === true)}
                   aria-label="Do not enlarge if smaller"
                 />
-                Do not enlarge if smaller
-                <span className="text-xs text-muted-foreground">
-                  — images already under the target stay untouched
-                </span>
+                <span>Do not enlarge if already smaller</span>
               </label>
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Scale · {scalePct}%
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              50% halves both sides; the aspect ratio is always preserved.
-              {noEnlarge ? ' “Do not enlarge” caps this at 100%.' : ''}
-            </p>
-            <Slider
-              value={[scalePct]}
-              min={10}
-              max={200}
-              step={5}
-              onValueChange={(v) => setScalePct(v[0])}
-              className="w-full sm:max-w-[280px]"
-              aria-label="Scale percentage"
-            />
-            <label className="mt-2 flex cursor-pointer items-center gap-2.5 text-sm">
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">
+                Scale · <span className="font-mono text-primary">{scalePct}%</span>
+              </Label>
+              <p className="text-[11px] text-muted-foreground">
+                50% halves both dimensions; aspect ratio is automatically preserved.
+              </p>
+              <Slider
+                value={[scalePct]}
+                min={10}
+                max={200}
+                step={5}
+                onValueChange={(v) => setScalePct(v[0])}
+                className="w-full sm:max-w-[280px] pt-1"
+                aria-label="Scale percentage"
+              />
+            </div>
+            <label className="flex cursor-pointer items-center gap-2.5 text-xs font-medium text-foreground pt-1">
               <Checkbox
                 checked={noEnlarge}
                 onCheckedChange={(v) => setNoEnlarge(v === true)}
                 aria-label="Do not enlarge if smaller"
               />
-              Do not enlarge if smaller
+              <span>Do not enlarge beyond 100%</span>
             </label>
           </div>
         )}
       </div>
 
       {/* Per-image preview list */}
-      <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          Every image will be resized like this:
+      <div className="space-y-2.5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+          Target Output Dimensions
         </p>
-        <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-96 space-y-2.5 overflow-y-auto pr-1">
           {files.map((f) => {
             const m = meta[f.id]
             const target =
@@ -317,39 +313,44 @@ export function ResizeImagesView({
             return (
               <div
                 key={f.id}
-                className="flex items-center gap-3 rounded-xl border border-border/70 bg-card p-2.5"
+                className="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-card/80 p-3.5 glass-card"
               >
                 {m ? (
                   <img
                     src={m.url}
                     alt={f.file.name}
-                    className="h-14 w-14 shrink-0 rounded-lg border border-border/60 bg-muted object-cover"
+                    className="h-14 w-14 shrink-0 rounded-xl border border-border/60 bg-muted object-contain p-1"
                     draggable={false}
                   />
                 ) : (
-                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-border/60 bg-muted">
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-border/60 bg-muted">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{f.file.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className="truncate text-xs font-semibold">{f.file.name}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground font-mono">
                     {formatBytes(f.file.size)}
                     {m && m.width > 1
-                      ? ` · ${m.width}×${m.height} px${
+                      ? ` · ${m.width}×${m.height}px${
                           target
                             ? target.changed
-                              ? ` → ${target.tw}×${target.th} px`
-                              : ' · no resize'
+                              ? ` → `
+                              : ' · kept'
                             : ''
                         }`
                       : ''}
+                    {target && target.changed && (
+                      <span className="font-bold text-primary">
+                        {target.tw}×{target.th}px
+                      </span>
+                    )}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onRemove(f.id)}
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
                   aria-label={`Remove ${f.file.name}`}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -365,27 +366,14 @@ export function ResizeImagesView({
         type="button"
         onClick={onAddMore}
         className={cn(
-          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-3 text-sm font-medium text-muted-foreground transition-colors',
-          'hover:border-primary/50 hover:text-primary'
+          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/80 py-3.5 text-xs font-semibold text-muted-foreground transition-all glass-card active-push',
+          'hover:border-primary/50 hover:text-primary hover:bg-primary/[0.02]'
         )}
         aria-label="Add more images"
       >
         <ImagePlus className="h-4 w-4" />
-        Add more images
+        <span>Add more images</span>
       </button>
-
-      {/* Info hint */}
-      <div className="flex items-start gap-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 text-sm">
-        <ScalingIcon className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-        <p className="text-muted-foreground">
-          With &ldquo;Maintain aspect ratio&rdquo; on, every image scales to
-          fit inside the pixel box without distortion — mixed batches stay
-          sharp. Turn it off for an exact width×height stretch. The output
-          keeps each image&rsquo;s original format (JPG stays JPG, PNG stays
-          PNG) and everything resizes locally in your browser; files never
-          leave your device.
-        </p>
-      </div>
     </div>
   )
 }

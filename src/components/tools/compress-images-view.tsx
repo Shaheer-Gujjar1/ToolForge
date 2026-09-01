@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ImagePlus, Loader2, Shrink as ShrinkIcon, X } from 'lucide-react'
+import { ImagePlus, Loader2, Shrink as ShrinkIcon, X, Sparkles, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /** No user options — compression is fully automatic. Emitted only so the
@@ -77,8 +77,6 @@ export function CompressImagesView({
       }
       img.onerror = () => {
         if (cancelled) return
-        // Preview failed (e.g. exotic format) — the worker surfaces a clear
-        // error for this file when Run is pressed.
         setMeta((prev) => ({
           ...prev,
           [f.id]: { url, width: 1, height: 1 },
@@ -106,57 +104,58 @@ export function CompressImagesView({
   }, [files, onChange])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Auto banner */}
-      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-secondary/40 px-4 py-3 text-sm">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+      <div className="flex items-center gap-3 rounded-2xl border border-border/80 bg-card/60 p-4 sm:p-5 glass-card shadow-2xs">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
           <ShrinkIcon className="h-4 w-4" />
         </span>
-        <p className="text-muted-foreground">
-          <span className="font-medium text-foreground">Fully automatic.</span>{' '}
-          No settings needed — dimensions and format are kept, and no file ever
-          comes out larger than it went in.
-        </p>
+        <div className="text-xs">
+          <span className="font-semibold text-foreground">Smart Lossless &amp; Structural Compression</span>
+          <p className="text-muted-foreground mt-0.5 leading-relaxed">
+            Optimizes raster buffers locally in your browser. Dimensions and formats are preserved, and already-optimized images are kept untouched.
+          </p>
+        </div>
       </div>
 
       {/* File list */}
-      <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          Images ready to compress:
+      <div className="space-y-2.5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+          Queued Images ({files.length})
         </p>
-        <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-96 space-y-2.5 overflow-y-auto pr-1">
           {files.map((f) => {
             const m = meta[f.id]
             return (
               <div
                 key={f.id}
-                className="flex items-center gap-3 rounded-xl border border-border/70 bg-card p-2.5"
+                className="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-card/80 p-3.5 glass-card"
               >
                 {m ? (
                   <img
                     src={m.url}
                     alt={f.file.name}
-                    className="h-14 w-14 shrink-0 rounded-lg border border-border/60 bg-muted object-cover"
+                    className="h-14 w-14 shrink-0 rounded-xl border border-border/60 bg-muted object-contain p-1"
                     draggable={false}
                   />
                 ) : (
-                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-border/60 bg-muted">
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-border/60 bg-muted">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{f.file.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className="truncate text-xs font-semibold">{f.file.name}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground font-mono">
                     {formatBytes(f.file.size)}
-                    {m && m.width > 1 ? ` · ${m.width}×${m.height} px` : ''}
+                    {m && m.width > 1 ? ` · ${m.width}×${m.height}px` : ''}
                     {' · '}
-                    <span className="font-medium text-primary">Auto</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">Auto-optimized</span>
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => onRemove(f.id)}
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
                   aria-label={`Remove ${f.file.name}`}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -172,28 +171,14 @@ export function CompressImagesView({
         type="button"
         onClick={onAddMore}
         className={cn(
-          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-3 text-sm font-medium text-muted-foreground transition-colors',
-          'hover:border-primary/50 hover:text-primary'
+          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/80 py-3.5 text-xs font-semibold text-muted-foreground transition-all glass-card active-push',
+          'hover:border-primary/50 hover:text-primary hover:bg-primary/[0.02]'
         )}
         aria-label="Add more images"
       >
         <ImagePlus className="h-4 w-4" />
-        Add more images
+        <span>Add more images</span>
       </button>
-
-      {/* Info hint */}
-      <div className="flex items-start gap-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 text-sm">
-        <ShrinkIcon className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-        <p className="text-muted-foreground">
-          Each image is re-encoded at a smart quality level in its original
-          format (JPG stays JPG, PNG stays PNG, WEBP stays WEBP — exotic inputs
-          like GIF or BMP are saved as PNG). Already-optimized images are kept
-          byte-for-byte, so results are never larger than the originals.
-          Dimensions stay untouched — to change the size of an image, use the
-          Resize Image tool. Everything compresses locally in your browser;
-          files never leave your device.
-        </p>
-      </div>
     </div>
   )
 }

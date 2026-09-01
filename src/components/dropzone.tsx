@@ -149,10 +149,10 @@ export function Dropzone({
         }}
         onDrop={onDrop}
         className={cn(
-          'group relative flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed p-8 text-center transition-all duration-300',
+          'group relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-200 glass-card',
           dragging
             ? 'border-primary bg-primary/10 scale-[1.01] shadow-lg shadow-primary/10'
-            : 'border-border/80 bg-card hover:border-primary/50 hover:bg-primary/[0.02]'
+            : 'border-border/80 bg-card hover:border-primary/40 hover:bg-primary/[0.02]'
         )}
       >
         <input

@@ -34,7 +34,13 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "ToolForge" }],
   icons: {
-    icon: "/logo.svg",
+    icon: [
+      { url: "/favicon/Tool-Forge-Logo1-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon/Tool-Forge-Logo1-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon/Tool-Forge-Logo1.ico" },
+    ],
+    apple: "/favicon/Tool-Forge-Logo1-128x128.png",
+    shortcut: "/favicon/Tool-Forge-Logo1.ico",
   },
   openGraph: {
     title: "ToolForge — Every Tool You Need, 100% Private",

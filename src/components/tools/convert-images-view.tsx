@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { ImagePlus, Loader2, Repeat as RepeatIcon, X } from 'lucide-react'
+import { ImagePlus, Loader2, Repeat as RepeatIcon, X, Sparkles } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -105,8 +105,6 @@ export function ConvertImagesView({
       }
       img.onerror = () => {
         if (cancelled) return
-        // Preview failed (e.g. exotic format) — the worker surfaces a clear
-        // error for this file when Run is pressed.
         setMeta((prev) => ({
           ...prev,
           [f.id]: { url, width: 1, height: 1 },
@@ -148,26 +146,27 @@ export function ConvertImagesView({
     setFormats(Object.fromEntries(files.map((f) => [f.id, target])))
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Global settings */}
-      <div className="rounded-2xl border border-border/70 bg-secondary/40 p-4 sm:p-5">
-        <div className="mb-4 flex items-center gap-2 text-sm font-medium">
+      <div className="rounded-2xl border border-border/80 bg-card/60 p-4 sm:p-5 glass-card shadow-2xs space-y-4">
+        <div className="flex items-center gap-2 text-sm font-semibold tracking-tight border-b border-border/50 pb-2.5">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/10 text-primary">
             <RepeatIcon className="h-4 w-4" />
           </span>
-          Conversion settings
+          <span>Batch Conversion Settings</span>
         </div>
+
         <div className="grid gap-5 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Same format for all</Label>
-            <p className="text-xs text-muted-foreground">
-              Overrides the per-image choices below.
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-foreground">Same Format for All</Label>
+            <p className="text-[11px] text-muted-foreground">
+              Overrides the per-image formats below.
             </p>
             <Select onValueChange={(v) => setFormatForAll(v as ConvertTarget)}>
-              <SelectTrigger className="w-full sm:w-[200px]" aria-label="Set the same output format for all images">
-                <SelectValue placeholder="Pick a format…" />
+              <SelectTrigger className="w-full sm:w-[200px] rounded-xl text-xs font-medium" aria-label="Set the same output format for all images">
+                <SelectValue placeholder="Select target format…" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-xl font-mono text-xs">
                 {TARGETS.map((t) => (
                   <SelectItem key={t.value} value={t.value}>
                     {t.label}
@@ -176,12 +175,13 @@ export function ConvertImagesView({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Quality · {qualityPct}%
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-foreground">
+              Quality · <span className="font-mono text-primary">{qualityPct}%</span>
             </Label>
-            <p className="text-xs text-muted-foreground">
-              Used by JPG and WEBP only — PNG is always lossless.
+            <p className="text-[11px] text-muted-foreground">
+              Used by JPG and WEBP only (PNG is lossless).
             </p>
             <Slider
               value={[qualityPct]}
@@ -189,7 +189,7 @@ export function ConvertImagesView({
               max={100}
               step={1}
               onValueChange={(v) => setQualityPct(v[0])}
-              className="w-full sm:max-w-[200px]"
+              className="w-full sm:max-w-[200px] pt-1"
               aria-label="Output quality for JPG and WEBP"
             />
           </div>
@@ -197,11 +197,11 @@ export function ConvertImagesView({
       </div>
 
       {/* Per-image format list */}
-      <div>
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          Choose the output format for each image:
+      <div className="space-y-2.5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+          Individual Image Targets
         </p>
-        <div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-96 space-y-2.5 overflow-y-auto pr-1">
           {files.map((f) => {
             const m = meta[f.id]
             const fmt = formats[f.id] ?? DEFAULT_TARGET
@@ -209,29 +209,29 @@ export function ConvertImagesView({
             return (
               <div
                 key={f.id}
-                className="flex items-center gap-3 rounded-xl border border-border/70 bg-card p-2.5"
+                className="flex items-center gap-3.5 rounded-2xl border border-border/80 bg-card/80 p-3.5 glass-card"
               >
                 {m ? (
                   <img
                     src={m.url}
                     alt={f.file.name}
-                    className="h-14 w-14 shrink-0 rounded-lg border border-border/60 bg-muted object-cover"
+                    className="h-14 w-14 shrink-0 rounded-xl border border-border/60 bg-muted object-contain p-1"
                     draggable={false}
                   />
                 ) : (
-                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-border/60 bg-muted">
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-border/60 bg-muted">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{f.file.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className="truncate text-xs font-semibold">{f.file.name}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground font-mono">
                     {formatBytes(f.file.size)}
-                    {m && m.width > 1 ? ` · ${m.width}×${m.height} px` : ''}
+                    {m && m.width > 1 ? ` · ${m.width}×${m.height}px` : ''}
                     {' · '}
-                    <span className="font-medium">{src}</span>
+                    <span className="font-semibold text-muted-foreground">{src}</span>
                     {' → '}
-                    <span className="font-medium text-primary">
+                    <span className="font-bold text-primary">
                       {fmt.toUpperCase()}
                     </span>
                   </p>
@@ -241,12 +241,12 @@ export function ConvertImagesView({
                   onValueChange={(v) => setFormat(f.id, v as ConvertTarget)}
                 >
                   <SelectTrigger
-                    className="h-8 w-[104px] shrink-0"
+                    className="h-8 w-[100px] shrink-0 rounded-xl font-mono text-xs font-semibold"
                     aria-label={`Output format for ${f.file.name}`}
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-xl font-mono text-xs">
                     {TARGETS.map((t) => (
                       <SelectItem key={t.value} value={t.value}>
                         {t.label}
@@ -257,7 +257,7 @@ export function ConvertImagesView({
                 <button
                   type="button"
                   onClick={() => onRemove(f.id)}
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
                   aria-label={`Remove ${f.file.name}`}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -273,25 +273,14 @@ export function ConvertImagesView({
         type="button"
         onClick={onAddMore}
         className={cn(
-          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-3 text-sm font-medium text-muted-foreground transition-colors',
-          'hover:border-primary/50 hover:text-primary'
+          'flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/80 py-3.5 text-xs font-semibold text-muted-foreground transition-all glass-card active-push',
+          'hover:border-primary/50 hover:text-primary hover:bg-primary/[0.02]'
         )}
         aria-label="Add more images"
       >
         <ImagePlus className="h-4 w-4" />
-        Add more images
+        <span>Add more images</span>
       </button>
-
-      {/* Transparency hint */}
-      <div className="flex items-start gap-3 rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 text-sm">
-        <RepeatIcon className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
-        <p className="text-muted-foreground">
-          Any image format your browser can read works here — JPG, PNG, WEBP,
-          GIF, BMP, AVIF and more. JPG has no transparency, so transparent
-          areas are flattened onto white. Everything converts locally in your
-          browser; files never leave your device.
-        </p>
-      </div>
     </div>
   )
 }

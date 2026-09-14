@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Layers, Lock, Star } from 'lucide-react'
+import { ArrowRight, Layers, Lock, Star, Sparkles } from 'lucide-react'
 import { type Tool, accentClasses } from '@/lib/tools'
 import { isImplemented } from '@/lib/processing/registry'
 import { cn } from '@/lib/utils'
@@ -92,7 +92,15 @@ export function ToolCard({
             </span>
           )}
           {tool.tag && (
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary font-mono">
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider font-mono',
+                tool.tag.toLowerCase() === 'perfect'
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                  : 'bg-primary/10 text-primary'
+              )}
+            >
+              {tool.tag.toLowerCase() === 'perfect' && <Sparkles className="h-2.5 w-2.5" />}
               {tool.tag}
             </span>
           )}

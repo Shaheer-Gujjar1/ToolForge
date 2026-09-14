@@ -37,6 +37,9 @@ export const toolProcessors: Partial<Record<string, ProcessorType>> = {
   'resize-images': 'resize-images',
   'html-to-image': 'html-to-image',
   'photo-editor': 'photo-editor',
+  'transparent-png': 'passthrough',
+  'morse-code': 'passthrough',
+  'random-text': 'passthrough',
 }
 
 export function getProcessor(toolId: string): ProcessorType {

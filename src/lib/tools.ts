@@ -29,6 +29,9 @@ import {
   Scaling,
   Image as ImageIcon,
   Brush,
+  Eraser,
+  Radio,
+  FileText,
 } from "lucide-react";
 
 export type ToolCategory =
@@ -38,7 +41,8 @@ export type ToolCategory =
   | "convert-to-pdf"
   | "convert-from-pdf"
   | "edit"
-  | "security";
+  | "security"
+  | "utility";
 
 export type AccentColor =
   | "rose"
@@ -120,10 +124,27 @@ export const categories: CategoryMeta[] = [
     tagline: "Lock down or unlock your documents.",
     accent: "violet",
   },
+  {
+    id: "utility",
+    name: "Text & Utilities",
+    tagline: "Morse code, dummy text generator and developer utilities.",
+    accent: "teal",
+  },
 ];
 
 export const tools: Tool[] = [
   // ---------- Image ----------
+  {
+    id: "transparent-png",
+    name: "Transparent PNG",
+    description:
+      "Replace any background color and close color tones with transparent pixels in PNG/JPG photos. Eyedropper sampling, similarity tolerance, edge smoothing and outer-only flood fill. Batch ready.",
+    category: "image",
+    icon: Eraser,
+    accent: "orange",
+    batch: true,
+    step: 7,
+  },
   {
     id: "crop-images",
     name: "Crop Images",
@@ -477,6 +498,32 @@ export const tools: Tool[] = [
     accent: "violet",
     batch: true,
     step: 4,
+  },
+
+  // ---------- Text & Utilities ----------
+  {
+    id: "morse-code",
+    name: "Morse Code",
+    description:
+      "Live 2-way Morse code translator. Convert text to Morse or decode dots and dashes to text in real-time with Web Audio oscillator sound playback and Farnsworth speed tuning.",
+    category: "utility",
+    icon: Radio,
+    accent: "teal",
+    batch: false,
+    step: 7,
+    tag: "Perfect",
+    locked: true, // DEV-ONLY: production-locked — do not modify unless explicitly asked
+  },
+  {
+    id: "random-text",
+    name: "Dummy Text Generator",
+    description:
+      "Generate custom dummy text, headings, subheadings, paragraphs, bullet lists, and structured articles with Latin, Tech, Business and Cyberpunk vocabularies with HTML & Markdown export.",
+    category: "utility",
+    icon: FileText,
+    accent: "emerald",
+    batch: false,
+    step: 7,
   },
 ];
 

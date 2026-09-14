@@ -2051,8 +2051,8 @@ processors['sign-annotate'] = async function (inputs, opts, onProgress, log) {
   return out;
 };
 
-/* ---- Edit PDF Text (overlay corrected text with whiteout) ------------- */
-/* options.edits = [{ page, x, y, text, size, whiteout: {x,y,w,h} }] */
+/* ---- Edit PDF Text (overlay corrected text with matching font & whiteout) ------------- */
+/* options.edits = [{ page, x, y, text, size, fontFamily, bold, italic, color, whiteout: {x,y,w,h}, whiteoutColor }] */
 processors['edit-text'] = async function (inputs, opts, onProgress, log) {
   var lib = getPDFLib();
   var edits = (opts && opts.edits) || [];
@@ -2061,16 +2061,78 @@ processors['edit-text'] = async function (inputs, opts, onProgress, log) {
     log('Editing text in ' + inputs[i].fileName);
     var doc = await lib.PDFDocument.load(inputs[i].data, { ignoreEncryption: true });
     var pages = doc.getPages();
-    var font = await doc.embedFont(lib.StandardFonts.Helvetica);
+
+    // Cache embedded fonts per document to avoid redundant font tables
+    var fontCache = {};
+    var getFont = async function (family, bold, italic) {
+      var key = (family || 'Helvetica') + '_' + (bold ? 'B' : '') + (italic ? 'I' : '');
+      if (fontCache[key]) return fontCache[key];
+
+      var targetFont = lib.StandardFonts.Helvetica;
+      if (family === 'TimesRoman') {
+        if (bold && italic) targetFont = lib.StandardFonts.TimesRomanBoldItalic;
+        else if (bold) targetFont = lib.StandardFonts.TimesRomanBold;
+        else if (italic) targetFont = lib.StandardFonts.TimesRomanItalic;
+        else targetFont = lib.StandardFonts.TimesRoman;
+      } else if (family === 'Courier') {
+        if (bold && italic) targetFont = lib.StandardFonts.CourierBoldOblique;
+        else if (bold) targetFont = lib.StandardFonts.CourierBold;
+        else if (italic) targetFont = lib.StandardFonts.CourierOblique;
+        else targetFont = lib.StandardFonts.Courier;
+      } else {
+        // Helvetica / sans-serif default
+        if (bold && italic) targetFont = lib.StandardFonts.HelveticaBoldOblique;
+        else if (bold) targetFont = lib.StandardFonts.HelveticaBold;
+        else if (italic) targetFont = lib.StandardFonts.HelveticaOblique;
+        else targetFont = lib.StandardFonts.Helvetica;
+      }
+
+      var embedded = await doc.embedFont(targetFont);
+      fontCache[key] = embedded;
+      return embedded;
+    };
+
     for (var e = 0; e < edits.length; e++) {
       var edit = edits[e];
-      var pageIdx = Math.min(edit.page || 0, pages.length - 1);
+      var pageIdx = Math.max(0, Math.min(edit.page || 0, pages.length - 1));
       var page = pages[pageIdx];
-      if (edit.whiteout) {
-        page.drawRectangle({ x: edit.whiteout.x, y: edit.whiteout.y, width: edit.whiteout.w, height: edit.whiteout.h, color: lib.rgb(1, 1, 1) });
+
+      // Draw whiteout background rectangle to mask out original text
+      if (edit.whiteout && typeof edit.whiteout.w === 'number' && typeof edit.whiteout.h === 'number') {
+        var woColor = lib.rgb(1, 1, 1);
+        if (edit.whiteoutColor) {
+          var wr = typeof edit.whiteoutColor.r === 'number' ? Math.max(0, Math.min(1, edit.whiteoutColor.r / 255)) : 1;
+          var wg = typeof edit.whiteoutColor.g === 'number' ? Math.max(0, Math.min(1, edit.whiteoutColor.g / 255)) : 1;
+          var wb = typeof edit.whiteoutColor.b === 'number' ? Math.max(0, Math.min(1, edit.whiteoutColor.b / 255)) : 1;
+          woColor = lib.rgb(wr, wg, wb);
+        }
+        page.drawRectangle({
+          x: edit.whiteout.x,
+          y: edit.whiteout.y,
+          width: edit.whiteout.w,
+          height: edit.whiteout.h,
+          color: woColor,
+        });
       }
-      if (edit.text) {
-        page.drawText(edit.text, { x: edit.x || 50, y: edit.y || 50, font: font, size: edit.size || 11, color: lib.rgb(0, 0, 0) });
+
+      // Draw new text with matched font and color
+      if (edit.text && edit.text.trim()) {
+        var font = await getFont(edit.fontFamily, edit.bold, edit.italic);
+        var textColor = lib.rgb(0, 0, 0);
+        if (edit.color) {
+          var tr = typeof edit.color.r === 'number' ? Math.max(0, Math.min(1, edit.color.r / 255)) : 0;
+          var tg = typeof edit.color.g === 'number' ? Math.max(0, Math.min(1, edit.color.g / 255)) : 0;
+          var tb = typeof edit.color.b === 'number' ? Math.max(0, Math.min(1, edit.color.b / 255)) : 0;
+          textColor = lib.rgb(tr, tg, tb);
+        }
+
+        page.drawText(edit.text, {
+          x: edit.x || 50,
+          y: edit.y || 50,
+          font: font,
+          size: Math.max(4, edit.size || 11),
+          color: textColor,
+        });
       }
     }
     var bytes = await doc.save({ useObjectStreams: true });

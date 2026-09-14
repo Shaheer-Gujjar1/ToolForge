@@ -28,8 +28,8 @@ export function SiteHeader({ current, onNavigate, onOpenSearch }: SiteHeaderProp
       <div
         className={cn(
           'pointer-events-auto mx-auto flex h-14 sm:h-16 max-w-5xl items-center justify-between gap-3 rounded-2xl sm:rounded-full px-4 sm:px-6 transition-all duration-300',
-          'border border-border/80 bg-background/85 backdrop-blur-xl shadow-lg shadow-black/5 dark:shadow-black/25 glass-card',
-          scrolled && 'border-primary/20 bg-background/95 shadow-xl'
+          'border border-border/40 bg-background/60 dark:bg-background/50 backdrop-blur-md shadow-xs',
+          scrolled && 'border-border/70 bg-background/80 dark:bg-background/70 shadow-sm'
         )}
       >
         <button
@@ -46,12 +46,12 @@ export function SiteHeader({ current, onNavigate, onOpenSearch }: SiteHeaderProp
             variant="outline"
             size="sm"
             onClick={onOpenSearch}
-            className="h-9 rounded-full border-border/70 px-3.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 gap-2 bg-secondary/40 active-push cursor-pointer shadow-2xs"
+            className="h-9 rounded-full border-border/50 px-3.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 gap-2 bg-secondary/20 hover:bg-secondary/40 active-push cursor-pointer shadow-2xs"
             aria-label="Search tools"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="font-medium">Search</span>
-            <kbd className="pointer-events-none hidden h-4 select-none items-center gap-0.5 rounded border border-border/80 bg-muted px-1.5 font-mono text-[9px] font-medium text-muted-foreground sm:inline-flex">
+            <kbd className="pointer-events-none hidden h-4 select-none items-center gap-0.5 rounded border border-border/70 bg-muted/60 px-1.5 font-mono text-[9px] font-medium text-muted-foreground sm:inline-flex">
               <span>⌘</span>K
             </kbd>
           </Button>

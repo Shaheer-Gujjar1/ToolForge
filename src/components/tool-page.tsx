@@ -61,6 +61,9 @@ import {
 import { RotateImagesView, type RotateImagesResult } from '@/components/tools/rotate-images-view'
 import { MemeMakerView, type MemeMakerResult } from '@/components/tools/meme-maker-view'
 import { BlurFacesView, type BlurFacesResult } from '@/components/tools/blur-faces-view'
+import { MorseCodeView } from '@/components/tools/morse-code-view'
+import { RandomTextView } from '@/components/tools/random-text-view'
+import { TransparentPngView } from '@/components/tools/transparent-png-view'
 import { ensureMemeFonts } from '@/lib/meme-fonts'
 import { useProcessing } from '@/hooks/use-processing'
 import { getProcessor, isImplemented } from '@/lib/processing/registry'
@@ -135,12 +138,18 @@ function getInput(tool: Tool): InputConfig {
       return { accept: '', multiple: false, hint: 'Paste your HTML', mode: 'text' }
     case 'photo-editor':
       return { accept: 'image/*', multiple: false, hint: 'JPG, PNG, WEBP, GIF, BMP — any image format', mode: 'files' }
+    case 'transparent-png':
+      return { accept: 'image/*', multiple: true, hint: 'PNG, JPG, WEBP, GIF, BMP — any image format', mode: 'files' }
+    case 'morse-code':
+      return { accept: '', multiple: false, hint: 'Type or play Morse code', mode: 'text' }
+    case 'random-text':
+      return { accept: '', multiple: false, hint: 'Generate placeholder text', mode: 'text' }
     default:
       return { accept: 'application/pdf', multiple: tool.batch, hint: 'PDF files', mode: 'files' }
   }
 }
 
-const INTERACTIVE_TOOLS = ['organize', 'crop', 'sign-annotate', 'edit-text', 'crop-images', 'convert-images', 'compress-images', 'resize-images', 'favicon-generator', 'watermark-images', 'watermark', 'rotate-images', 'meme-maker', 'blur-faces', 'photo-editor']
+const INTERACTIVE_TOOLS = ['organize', 'crop', 'sign-annotate', 'edit-text', 'crop-images', 'convert-images', 'compress-images', 'resize-images', 'favicon-generator', 'watermark-images', 'watermark', 'rotate-images', 'meme-maker', 'blur-faces', 'photo-editor', 'transparent-png', 'morse-code', 'random-text']
 
 export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
   const a = accentClasses[tool.accent]
@@ -182,6 +191,9 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
   const isRotateImages = tool.id === 'rotate-images'
   const isMemeMaker = tool.id === 'meme-maker'
   const isBlurFaces = tool.id === 'blur-faces'
+  const isTransparentPng = tool.id === 'transparent-png'
+  const isMorseCode = tool.id === 'morse-code'
+  const isRandomText = tool.id === 'random-text'
   const [splitConfig, setSplitConfig] = React.useState<SplitConfig>({ mode: 'each', ranges: '' })
   const [rotateConfig, setRotateConfig] = React.useState<RotateConfig>({ angle: 90 })
   const [imagesConfig, setImagesConfig] = React.useState<ImagesToPdfConfig>({
@@ -973,9 +985,20 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
             </Badge>
           )}
           {tool.tag && (
-            <Badge className="rounded-full font-mono text-[10px] uppercase tracking-wider">{tool.tag}</Badge>
+            <Badge
+              variant={tool.tag.toLowerCase() === 'perfect' ? 'secondary' : 'default'}
+              className={cn(
+                'rounded-full font-mono text-[10px] uppercase tracking-wider',
+                tool.tag.toLowerCase() === 'perfect'
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                  : ''
+              )}
+            >
+              {tool.tag.toLowerCase() === 'perfect' && <Sparkles className="mr-1 h-3 w-3" />}
+              {tool.tag}
+            </Badge>
           )}
-          {preview && (
+          {preview && !isMorseCode && !isRandomText && !isTransparentPng && (
             <Badge variant="outline" className="rounded-full border-amber-500/40 text-amber-600 dark:text-amber-400 font-mono text-[10px]">
               <Sparkles className="mr-1 h-3 w-3" /> Step {tool.step}
             </Badge>
@@ -998,13 +1021,23 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
         <input
           ref={addMoreInputRef}
           type="file"
-          accept={isConvertImages || isFaviconGenerator || isWatermarkImages || isRotateImages || isMemeMaker || isBlurFaces ? 'image/*' : isWordToPdf ? '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document' : isExcelToPdf ? '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : isImagesToPdf || isCropImages ? 'image/jpeg,image/jpg,image/png,image/webp' : 'application/pdf'}
+          accept={isConvertImages || isFaviconGenerator || isWatermarkImages || isRotateImages || isMemeMaker || isBlurFaces || isTransparentPng ? 'image/*' : isWordToPdf ? '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document' : isExcelToPdf ? '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : isImagesToPdf || isCropImages ? 'image/jpeg,image/jpg,image/png,image/webp' : 'application/pdf'}
           multiple
           className="hidden"
           onChange={handleAddMoreChange}
         />
 
-        {isMerge && files.length > 0 ? (
+        {isMorseCode ? (
+          <MorseCodeView />
+        ) : isRandomText ? (
+          <RandomTextView />
+        ) : isTransparentPng && files.length > 0 ? (
+          <TransparentPngView
+            files={stableImageFiles}
+            onRemove={(id) => setFiles((prev) => prev.filter((f) => f.id !== id))}
+            onAddMore={handleAddMore}
+          />
+        ) : isMerge && files.length > 0 ? (
           <MergeView
             files={mergeFiles}
             onReorder={handleMergeReorder}
@@ -1198,48 +1231,50 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
           </div>
         )}
 
-        {/* Action bar */}
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/70 pt-6 sm:flex-row">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-            <span className={cn('h-2 w-2 rounded-full', runEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40')} />
-            <span>
-              {processing.isWorking
-                ? 'Processing locally in browser memory…'
-                : cfg.mode === 'files'
-                  ? files.length === 0
-                    ? 'Upload files above to begin'
-                    : `${files.length} file${files.length > 1 ? 's' : ''} queued and ready`
-                  : isHtmlToImage
-                    ? htmlImageConfig.html.trim()
-                      ? 'HTML ready to render'
-                      : 'Paste code or upload an HTML file'
-                    : html.trim()
-                      ? 'HTML template ready'
-                      : 'Paste HTML code to begin'}
-            </span>
+        {/* Action bar (hidden on standalone interactive tools like Morse, Random Text, and Transparent PNG) */}
+        {!isMorseCode && !isRandomText && (!isTransparentPng || files.length === 0) && (
+          <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/70 pt-6 sm:flex-row">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+              <span className={cn('h-2 w-2 rounded-full', runEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40')} />
+              <span>
+                {processing.isWorking
+                  ? 'Processing locally in browser memory…'
+                  : cfg.mode === 'files'
+                    ? files.length === 0
+                      ? 'Upload files above to begin'
+                      : `${files.length} file${files.length > 1 ? 's' : ''} queued and ready`
+                    : isHtmlToImage
+                      ? htmlImageConfig.html.trim()
+                        ? 'HTML ready to render'
+                        : 'Paste code or upload an HTML file'
+                      : html.trim()
+                        ? 'HTML template ready'
+                        : 'Paste HTML code to begin'}
+              </span>
+            </div>
+
+            <Button
+              size="lg"
+              className="w-full sm:w-auto h-11 px-6 rounded-xl font-semibold gap-2.5 shadow-md shadow-primary/20 cursor-pointer active-push text-sm"
+              disabled={!runEnabled}
+              onClick={handleProcess}
+            >
+              {(processing.isWorking || preparing) ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Wand2 className="h-4 w-4" />
+              )}
+              <span>{buttonLabel}</span>
+              {runEnabled && !processing.isWorking && !preparing && (
+                <kbd className="hidden sm:inline-flex h-5 select-none items-center rounded-md bg-primary-foreground/20 px-1.5 font-mono text-[10px] font-medium text-primary-foreground">
+                  ⌘↵
+                </kbd>
+              )}
+            </Button>
           </div>
+        )}
 
-          <Button
-            size="lg"
-            className="w-full sm:w-auto h-11 px-6 rounded-xl font-semibold gap-2.5 shadow-md shadow-primary/20 cursor-pointer active-push text-sm"
-            disabled={!runEnabled}
-            onClick={handleProcess}
-          >
-            {(processing.isWorking || preparing) ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Wand2 className="h-4 w-4" />
-            )}
-            <span>{buttonLabel}</span>
-            {runEnabled && !processing.isWorking && !preparing && (
-              <kbd className="hidden sm:inline-flex h-5 select-none items-center rounded-md bg-primary-foreground/20 px-1.5 font-mono text-[10px] font-medium text-primary-foreground">
-                ⌘↵
-              </kbd>
-            )}
-          </Button>
-        </div>
-
-        {preview && !processing.isWorking && processing.status === 'idle' && (
+        {preview && !isMorseCode && !isRandomText && !isTransparentPng && !processing.isWorking && processing.status === 'idle' && (
           <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
             <Cpu className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             <div>

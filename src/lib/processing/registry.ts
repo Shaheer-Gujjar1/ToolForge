@@ -40,6 +40,8 @@ export const toolProcessors: Partial<Record<string, ProcessorType>> = {
   'transparent-png': 'passthrough',
   'morse-code': 'passthrough',
   'random-text': 'passthrough',
+  'public-ip': 'passthrough',
+  'color-picker': 'passthrough',
 }
 
 export function getProcessor(toolId: string): ProcessorType {

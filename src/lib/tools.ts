@@ -32,6 +32,7 @@ import {
   Eraser,
   Radio,
   FileText,
+  Pipette,
 } from "lucide-react";
 
 export type ToolCategory =
@@ -525,6 +526,32 @@ export const tools: Tool[] = [
     accent: "emerald",
     batch: false,
     step: 7,
+  },
+  {
+    id: "public-ip",
+    name: "Find Your Public IP",
+    description:
+      "Inspect your public IP address (IPv4 / IPv6), network hostname, ISP, address location, and GPS coordinates with instant clipboard copy and total privacy.",
+    category: "utility",
+    icon: Globe,
+    accent: "teal",
+    batch: false,
+    step: 7,
+    tag: "Perfect",
+    locked: true,
+  },
+  {
+    id: "color-picker",
+    name: "HTML Color Picker",
+    description:
+      "Canva-style pro color studio. Interactive 2D picker, HEX, RGB, HSL, HSV, CMYK, OKLCH codes, eyedropper screen sampler, image palette extractor, WCAG contrast analyzer, and harmonies.",
+    category: "utility",
+    icon: Pipette,
+    accent: "fuchsia",
+    batch: false,
+    step: 7,
+    tag: "Perfect",
+    locked: true,
   },
 ];
 

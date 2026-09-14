@@ -50,11 +50,11 @@ export default function Home() {
       />
 
       <main className="flex-1">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           {parsed.route === 'home' || !parsed.toolId ? (
             <motion.div
               key={`home-${parsed.category || 'all'}`}
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}

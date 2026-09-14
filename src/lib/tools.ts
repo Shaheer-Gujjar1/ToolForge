@@ -144,6 +144,7 @@ export const tools: Tool[] = [
     accent: "orange",
     batch: true,
     step: 7,
+    locked: true, // DEV-ONLY: production-locked — do not modify unless explicitly asked
   },
   {
     id: "crop-images",
@@ -469,13 +470,14 @@ export const tools: Tool[] = [
   {
     id: "edit-text",
     name: "Edit PDF Text",
-    description: "Basic in-place text editing powered by WASM overlays.",
+    description:
+      "Direct in-place text editing with local OCR recognition, matching font typography, and seamless PDF export. 100% private.",
     category: "edit",
     icon: Type,
     accent: "fuchsia",
     batch: false,
     step: 5,
-    tag: "WASM",
+    locked: true, // DEV-ONLY: production-locked — do not modify unless explicitly asked
   },
 
   // ---------- Security ----------
@@ -511,7 +513,6 @@ export const tools: Tool[] = [
     accent: "teal",
     batch: false,
     step: 7,
-    tag: "Perfect",
     locked: true, // DEV-ONLY: production-locked — do not modify unless explicitly asked
   },
   {

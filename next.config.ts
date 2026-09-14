@@ -7,8 +7,14 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Allow LAN development origins for WebSocket HMR
-  allowedDevOrigins: ["localhost", "192.168.1.27", "127.0.0.1"],
+  // Allow LAN development origins and Cloudflare Tunnel origins for WebSocket HMR and dev resources
+  allowedDevOrigins: [
+    "localhost",
+    "127.0.0.1",
+    "192.168.*.*",
+    "*.trycloudflare.com",
+    "**.trycloudflare.com",
+  ],
 };
 
 export default nextConfig;

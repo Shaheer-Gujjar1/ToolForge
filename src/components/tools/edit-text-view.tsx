@@ -13,14 +13,10 @@ import {
   Bold,
   Italic,
   RotateCcw,
-  Check,
   Palette,
-  Eraser,
   ZoomIn,
   ZoomOut,
   HelpCircle,
-  Undo,
-  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { loadPdfJs } from '@/hooks/use-pdf'
@@ -87,7 +83,7 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
   // Applied edits list
   const [edits, setEdits] = React.useState<PdfEditItem[]>([])
 
-  // Active inline editor state (directly on the PDF)
+  // Active direct editing state (pure text caret, no border/box)
   const [activeInline, setActiveInline] = React.useState<{
     id: string
     isNew: boolean
@@ -109,6 +105,17 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
     canvasW: number
     canvasH: number
   } | null>(null)
+
+  // Global typography bar settings (syncs with selected text or applies to new text)
+  const [selectedFont, setSelectedFont] = React.useState<StandardPdfFontFamily>('Helvetica')
+  const [selectedSize, setSelectedSize] = React.useState<number>(12)
+  const [selectedBold, setSelectedBold] = React.useState<boolean>(false)
+  const [selectedItalic, setSelectedItalic] = React.useState<boolean>(false)
+  const [selectedColor, setSelectedColor] = React.useState<{ r: number; g: number; b: number }>({
+    r: 0,
+    g: 0,
+    b: 0,
+  })
 
   const [hoveredItemId, setHoveredItemId] = React.useState<string | null>(null)
   const [addMode, setAddMode] = React.useState(false)
@@ -296,7 +303,7 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
       }
     }
 
-    // If an item is being actively edited inline, also whiteout its background on canvas
+    // If an item is being actively edited inline, whiteout its background on the canvas so old text vanishes!
     if (activeInline && activeInline.page === pageIdx) {
       const woCanvasX = activeInline.canvasX
       const woCanvasY = activeInline.canvasY
@@ -338,7 +345,6 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
   // Current page text items
   const pageIdx = currentPage - 1
   const currentTextItems = pageTextMap[pageIdx] || []
-  const currentEdits = edits.filter((e) => e.page === pageIdx)
 
   // Run OCR on current page canvas
   const handleRunOcr = async () => {
@@ -374,23 +380,20 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
     }
   }
 
-  // Handle clicking on an existing text item to edit in-place
+  // Handle clicking on any text directly to place cursor right in it (NO textbox!)
   const handleSelectTextItem = (item: DetectedTextItem) => {
     if (addMode || !pageDim) return
 
-    // If an existing inline edit is open, commit it first
     if (activeInline) {
       commitActiveInline()
     }
 
     const scale = pageDim.width / pageDim.pdfWidth
 
-    // Check if an existing edit already modified this text
     const existingEdit = edits.find(
       (e) => e.page === item.page && Math.abs(e.x - item.x) < 2 && Math.abs(e.y - item.y) < 2
     )
 
-    // Accurate typography bounds
     const fontSize = existingEdit ? existingEdit.size : item.fontSize
     const descender = fontSize * 0.28
     const totalHeight = fontSize * 1.32
@@ -416,10 +419,22 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
       }
     }
 
-    const canvasX = woX * scale
-    const canvasY = (pageDim.pdfHeight - (woY + woH)) * scale
-    const canvasW = woW * scale
-    const canvasH = woH * scale
+    const canvasX = item.x * scale
+    const canvasY = (pageDim.pdfHeight - (item.y + fontSize * 0.95)) * scale
+    const canvasW = Math.max(woW * scale, 30)
+    const canvasH = Math.max(totalHeight * scale, 18)
+
+    const initialFont = existingEdit ? existingEdit.fontFamily : item.fontFamily
+    const initialBold = existingEdit ? existingEdit.bold : item.bold
+    const initialItalic = existingEdit ? existingEdit.italic : item.italic
+    const initialColor = existingEdit ? existingEdit.color : item.color
+
+    // Sync top toolbar controls
+    setSelectedFont(initialFont)
+    setSelectedSize(fontSize)
+    setSelectedBold(initialBold)
+    setSelectedItalic(initialItalic)
+    setSelectedColor(initialColor)
 
     setActiveInline({
       id: existingEdit ? existingEdit.id : `edit_${Date.now()}`,
@@ -431,11 +446,11 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
       h: woH,
       originalText: existingEdit?.originalText ?? item.text,
       text: existingEdit ? existingEdit.text : item.text,
-      fontFamily: existingEdit ? existingEdit.fontFamily : item.fontFamily,
+      fontFamily: initialFont,
       fontSize,
-      bold: existingEdit ? existingEdit.bold : item.bold,
-      italic: existingEdit ? existingEdit.italic : item.italic,
-      color: existingEdit ? existingEdit.color : item.color,
+      bold: initialBold,
+      italic: initialItalic,
+      color: initialColor,
       whiteoutColor: existingEdit?.whiteoutColor ?? sampledBg,
       canvasX,
       canvasY,
@@ -446,14 +461,13 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
     setTimeout(() => {
       inlineInputRef.current?.focus()
       inlineInputRef.current?.select()
-    }, 50)
+    }, 40)
   }
 
-  // Handle clicking on page canvas to place freeform text
+  // Handle clicking on page to type new text directly
   const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!pageDim || !containerRef.current) return
 
-    // If clicking outside while inline editing, commit the edit
     if (activeInline) {
       commitActiveInline()
       return
@@ -467,8 +481,7 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
 
     const scale = pageDim.width / pageDim.pdfWidth
     const pdfX = Math.round(clickCanvasX / scale)
-    const fontSize = 12
-    // Baseline in PDF coordinates
+    const fontSize = selectedSize
     const pdfY = Math.round(pageDim.pdfHeight - (clickCanvasY / scale) - fontSize * 0.8)
 
     const woW = 120
@@ -476,8 +489,8 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
     const woX = pdfX
     const woY = pdfY - fontSize * 0.28
 
-    const canvasX = woX * scale
-    const canvasY = (pageDim.pdfHeight - (woY + woH)) * scale
+    const canvasX = pdfX * scale
+    const canvasY = (pageDim.pdfHeight - (pdfY + fontSize * 0.95)) * scale
     const canvasW = woW * scale
     const canvasH = woH * scale
 
@@ -492,11 +505,11 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
       h: woH,
       originalText: '',
       text: 'New Text',
-      fontFamily: 'Helvetica',
+      fontFamily: selectedFont,
       fontSize,
-      bold: false,
-      italic: false,
-      color: { r: 0, g: 0, b: 0 },
+      bold: selectedBold,
+      italic: selectedItalic,
+      color: selectedColor,
       whiteoutColor: { r: 255, g: 255, b: 255 },
       canvasX,
       canvasY,
@@ -508,7 +521,7 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
     setTimeout(() => {
       inlineInputRef.current?.focus()
       inlineInputRef.current?.select()
-    }, 50)
+    }, 40)
   }
 
   // Commit and save active inline edit
@@ -518,7 +531,6 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
     const trimmed = activeInline.text.trim()
     const hasOriginal = Boolean(activeInline.originalText)
 
-    // If it's a new empty item, don't save
     if (!trimmed && !hasOriginal) {
       setActiveInline(null)
       return
@@ -568,6 +580,45 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
     setActiveInline(null)
   }
 
+  // Update typography on active item or global selection
+  const updateActiveFontFamily = (family: StandardPdfFontFamily) => {
+    setSelectedFont(family)
+    if (activeInline) {
+      setActiveInline({ ...activeInline, fontFamily: family })
+    }
+  }
+
+  const updateActiveFontSize = (delta: number) => {
+    const newSize = Math.max(6, Math.min(72, (activeInline?.fontSize ?? selectedSize) + delta))
+    setSelectedSize(newSize)
+    if (activeInline) {
+      setActiveInline({ ...activeInline, fontSize: newSize })
+    }
+  }
+
+  const toggleActiveBold = () => {
+    const nextVal = !(activeInline?.bold ?? selectedBold)
+    setSelectedBold(nextVal)
+    if (activeInline) {
+      setActiveInline({ ...activeInline, bold: nextVal })
+    }
+  }
+
+  const toggleActiveItalic = () => {
+    const nextVal = !(activeInline?.italic ?? selectedItalic)
+    setSelectedItalic(nextVal)
+    if (activeInline) {
+      setActiveInline({ ...activeInline, italic: nextVal })
+    }
+  }
+
+  const updateActiveColor = (rgb: { r: number; g: number; b: number }) => {
+    setSelectedColor(rgb)
+    if (activeInline) {
+      setActiveInline({ ...activeInline, color: rgb })
+    }
+  }
+
   // Remove an edit and restore original text
   const handleRemoveEdit = (id: string) => {
     setEdits((prev) => prev.filter((e) => e.id !== id))
@@ -584,67 +635,157 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Top Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/60 p-3 backdrop-blur-sm shadow-xs">
-        {/* Page Switcher */}
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => {
-              if (activeInline) commitActiveInline()
-              setCurrentPage((p) => Math.max(1, p - 1))
-            }}
-            disabled={currentPage <= 1 || pageLoading}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="min-w-[110px] text-center text-xs font-medium text-foreground">
-            Page {currentPage} of {numPages}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => {
-              if (activeInline) commitActiveInline()
-              setCurrentPage((p) => Math.min(numPages, p + 1))
-            }}
-            disabled={currentPage >= numPages || pageLoading}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {/* Top Global Toolbar (Integrated Typography & Page Controls) */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-border/60 bg-card/70 p-2.5 backdrop-blur-md shadow-xs">
+        {/* Left: Page Switcher & Zoom */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                if (activeInline) commitActiveInline()
+                setCurrentPage((p) => Math.max(1, p - 1))
+              }}
+              disabled={currentPage <= 1 || pageLoading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[95px] text-center text-xs font-medium text-foreground">
+              {currentPage} / {numPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => {
+                if (activeInline) commitActiveInline()
+                setCurrentPage((p) => Math.min(numPages, p + 1))
+              }}
+              disabled={currentPage >= numPages || pageLoading}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="h-4 w-px bg-border/60" />
+
+          {/* Zoom Controls */}
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setPageScale((s) => Math.max(0.75, Math.round((s - 0.25) * 100) / 100))}
+              disabled={pageScale <= 0.75}
+              title="Zoom out"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </Button>
+            <span className="w-10 text-center text-[11px] font-medium text-muted-foreground">
+              {Math.round(pageScale * 100)}%
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setPageScale((s) => Math.min(2.0, Math.round((s + 0.25) * 100) / 100))}
+              disabled={pageScale >= 2.0}
+              title="Zoom in"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setPageScale((s) => Math.max(0.75, Math.round((s - 0.25) * 100) / 100))}
-            disabled={pageScale <= 0.75}
-            title="Zoom out"
+        {/* Center: Typography Toolbar (Lives cleanly in toolbar, NO textboxes on screen!) */}
+        <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-2 py-1">
+          {/* Font Selector */}
+          <select
+            value={activeInline ? activeInline.fontFamily : selectedFont}
+            onChange={(e) => updateActiveFontFamily(e.target.value as StandardPdfFontFamily)}
+            className="h-7 rounded border border-border/60 bg-background px-2 text-xs font-medium outline-hidden"
+            title="Font Family"
           >
-            <ZoomOut className="h-3.5 w-3.5" />
-          </Button>
-          <span className="w-12 text-center text-[11px] font-medium text-muted-foreground">
-            {Math.round(pageScale * 100)}%
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setPageScale((s) => Math.min(2.0, Math.round((s + 0.25) * 100) / 100))}
-            disabled={pageScale >= 2.0}
-            title="Zoom in"
+            <option value="Helvetica">Helvetica (Sans)</option>
+            <option value="TimesRoman">Times (Serif)</option>
+            <option value="Courier">Courier (Mono)</option>
+          </select>
+
+          {/* Font Size Stepper */}
+          <div className="flex items-center rounded border border-border/60 bg-background">
+            <button
+              type="button"
+              onClick={() => updateActiveFontSize(-1)}
+              className="px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              -
+            </button>
+            <span className="w-6 text-center text-xs font-semibold">
+              {activeInline ? activeInline.fontSize : selectedSize}
+            </span>
+            <button
+              type="button"
+              onClick={() => updateActiveFontSize(1)}
+              className="px-1.5 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Bold & Italic */}
+          <button
+            type="button"
+            onClick={toggleActiveBold}
+            className={cn(
+              'flex h-7 w-7 items-center justify-center rounded border transition-colors',
+              (activeInline ? activeInline.bold : selectedBold)
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border/60 hover:bg-muted'
+            )}
+            title="Bold"
           >
-            <ZoomIn className="h-3.5 w-3.5" />
-          </Button>
+            <Bold className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleActiveItalic}
+            className={cn(
+              'flex h-7 w-7 items-center justify-center rounded border transition-colors',
+              (activeInline ? activeInline.italic : selectedItalic)
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border/60 hover:bg-muted'
+            )}
+            title="Italic"
+          >
+            <Italic className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Quick Color Swatches */}
+          <div className="flex items-center gap-1 pl-1">
+            {PRESET_COLORS.slice(0, 5).map((c) => {
+              const currentRgb = activeInline ? activeInline.color : selectedColor
+              const isSelected =
+                currentRgb.r === c.rgb.r && currentRgb.g === c.rgb.g && currentRgb.b === c.rgb.b
+              return (
+                <button
+                  key={c.label}
+                  type="button"
+                  onClick={() => updateActiveColor(c.rgb)}
+                  className={cn(
+                    'h-4.5 w-4.5 rounded-full border border-border/40 transition-transform',
+                    isSelected && 'scale-125 ring-2 ring-primary ring-offset-1'
+                  )}
+                  style={{ backgroundColor: c.hex }}
+                  title={c.label}
+                />
+              )
+            })}
+          </div>
         </div>
 
-        {/* Action Buttons: Add Text & OCR */}
+        {/* Right: Actions */}
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -653,10 +794,10 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
               if (activeInline) commitActiveInline()
               setAddMode(!addMode)
             }}
-            className="text-xs gap-1.5"
+            className="h-8 text-xs gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" />
-            {addMode ? 'Click on PDF to place' : 'Add New Text'}
+            {addMode ? 'Click on PDF to place' : 'Add Text'}
           </Button>
 
           <Button
@@ -664,18 +805,18 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
             variant="secondary"
             onClick={handleRunOcr}
             disabled={ocrRunning || pageLoading}
-            className="gap-1.5 text-xs font-medium shadow-xs"
-            title="Run OCR to detect text in scanned pages and images"
+            className="h-8 gap-1.5 text-xs font-medium shadow-xs"
+            title="Detect text in scanned images with OCR"
           >
             {ocrRunning ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                <span>{ocrProgress.msg || 'Recognizing...'}</span>
+                <span>{ocrProgress.msg || 'OCR...'}</span>
               </>
             ) : (
               <>
                 <ScanText className="h-3.5 w-3.5 text-primary" />
-                <span>Run OCR Detection</span>
+                <span>Run OCR</span>
               </>
             )}
           </Button>
@@ -685,7 +826,7 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
               size="sm"
               variant="ghost"
               onClick={handleClearAll}
-              className="text-xs text-muted-foreground hover:text-destructive gap-1"
+              className="h-8 text-xs text-muted-foreground hover:text-destructive gap-1"
               title="Reset all edits"
             >
               <RotateCcw className="h-3 w-3" />
@@ -697,14 +838,14 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
 
       {/* OCR Scanning Progress Bar */}
       {ocrRunning && (
-        <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-xs text-primary">
+        <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-xs text-primary">
           <Sparkles className="h-4 w-4 animate-pulse shrink-0" />
           <div className="flex-1">
             <div className="flex justify-between font-medium">
               <span>Local In-Browser OCR Scanning...</span>
               <span>{ocrProgress.pct}%</span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-primary/20">
+            <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-primary/20">
               <div
                 className="h-full bg-primary transition-all duration-300 ease-out"
                 style={{ width: `${ocrProgress.pct}%` }}
@@ -715,8 +856,8 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
       )}
 
       {/* Main PDF Workspace + Sidebar */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        {/* PDF Canvas with Inline Direct Editor */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+        {/* PDF Canvas with Completely Box-Free Direct Text Editing */}
         <div className="relative flex flex-col items-center justify-start overflow-auto rounded-xl border border-border/80 bg-muted/20 p-4 shadow-inner min-h-[500px]">
           {pageLoading && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/70 backdrop-blur-xs">
@@ -740,7 +881,7 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
             {/* The Master Canvas (holds rendered PDF page + painted whiteout + edited text) */}
             <canvas ref={canvasRef} className="block rounded-lg bg-white" />
 
-            {/* Clickable Hover Overlays for detected text blocks */}
+            {/* Clickable Invisible Overlays for detected text blocks */}
             {pageDim &&
               !activeInline &&
               currentTextItems.map((item) => {
@@ -764,8 +905,8 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
                       handleSelectTextItem(item)
                     }}
                     className={cn(
-                      'absolute cursor-pointer transition-all duration-100 rounded-[2px]',
-                      'border border-transparent hover:border-primary/50 hover:bg-primary/10 hover:shadow-xs'
+                      'absolute cursor-text transition-all duration-75 rounded-[1px]',
+                      'hover:bg-blue-500/10 hover:outline-dashed hover:outline-1 hover:outline-blue-500/40'
                     )}
                     style={{
                       left: `${left}px`,
@@ -773,172 +914,48 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
                       width: `${width}px`,
                       height: `${height}px`,
                     }}
-                    title="Click to edit in-place"
-                  >
-                    {/* Hover font-matcher badge */}
-                    {isHovered && (
-                      <div className="pointer-events-none absolute -top-6 left-0 z-30 flex items-center gap-1 whitespace-nowrap rounded bg-foreground/90 px-1.5 py-0.5 text-[9px] font-medium text-background shadow-md">
-                        <Type className="h-2.5 w-2.5" />
-                        <span>
-                          {item.fontFamily} · {item.fontSize}pt
-                          {item.bold ? ' Bold' : ''}
-                          {item.italic ? ' Italic' : ''}
-                          {item.source === 'ocr' ? ' (OCR)' : ''}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                    title="Click to edit text directly"
+                  />
                 )
               })}
 
-            {/* LIVE IN-PLACE EDITOR (Rendered directly on top of the text on the PDF) */}
+            {/* DIRECT TEXT EDITING: ZERO BOX, ZERO BORDER, ZERO OUTLINE. PURE TEXT! */}
             {activeInline && pageDim && (
-              <div
-                className="absolute z-30 flex flex-col"
+              <input
+                ref={inlineInputRef}
+                type="text"
+                value={activeInline.text}
+                onChange={(e) => setActiveInline({ ...activeInline, text: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    commitActiveInline()
+                  } else if (e.key === 'Escape') {
+                    setActiveInline(null)
+                  }
+                }}
+                onBlur={commitActiveInline}
+                className="absolute z-30 p-0 m-0 border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-0"
                 style={{
                   left: `${activeInline.canvasX}px`,
                   top: `${activeInline.canvasY}px`,
+                  width: `${Math.max(activeInline.canvasW + 60, 100)}px`,
+                  height: `${activeInline.canvasH}px`,
+                  lineHeight: `${activeInline.canvasH}px`,
+                  fontFamily:
+                    activeInline.fontFamily === 'TimesRoman'
+                      ? '"Times New Roman", Times, Georgia, serif'
+                      : activeInline.fontFamily === 'Courier'
+                      ? '"Courier New", Courier, monospace'
+                      : 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  fontSize: `${activeInline.fontSize * (pageDim.width / pageDim.pdfWidth)}px`,
+                  fontWeight: activeInline.bold ? '700' : '400',
+                  fontStyle: activeInline.italic ? 'italic' : 'normal',
+                  color: `rgb(${activeInline.color.r}, ${activeInline.color.g}, ${activeInline.color.b})`,
+                  backgroundColor: 'transparent', // Canvas underneath is already whited out!
+                  caretColor: `rgb(${activeInline.color.r}, ${activeInline.color.g}, ${activeInline.color.b})`,
                 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Floating Quick Typography Bar */}
-                <div className="absolute -top-11 left-0 z-40 flex items-center gap-1.5 rounded-lg border border-border/80 bg-popover/95 p-1 text-popover-foreground shadow-lg backdrop-blur-md animate-in fade-in-50 zoom-in-95 duration-150">
-                  {/* Font Triad Selector */}
-                  <select
-                    value={activeInline.fontFamily}
-                    onChange={(e) =>
-                      setActiveInline({
-                        ...activeInline,
-                        fontFamily: e.target.value as StandardPdfFontFamily,
-                      })
-                    }
-                    className="h-7 rounded border border-border/60 bg-background px-1.5 text-[11px] font-medium outline-hidden"
-                  >
-                    <option value="Helvetica">Helvetica (Sans)</option>
-                    <option value="TimesRoman">Times (Serif)</option>
-                    <option value="Courier">Courier (Mono)</option>
-                  </select>
-
-                  {/* Font Size Stepper */}
-                  <div className="flex items-center rounded border border-border/60 bg-background">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveInline({
-                          ...activeInline,
-                          fontSize: Math.max(6, activeInline.fontSize - 1),
-                        })
-                      }
-                      className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
-                    >
-                      -
-                    </button>
-                    <span className="w-6 text-center text-[10px] font-semibold">{activeInline.fontSize}</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveInline({
-                          ...activeInline,
-                          fontSize: Math.min(72, activeInline.fontSize + 1),
-                        })
-                      }
-                      className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  {/* Bold & Italic */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveInline({ ...activeInline, bold: !activeInline.bold })}
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded border transition-colors',
-                      activeInline.bold
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border/60 hover:bg-muted'
-                    )}
-                    title="Bold"
-                  >
-                    <Bold className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveInline({ ...activeInline, italic: !activeInline.italic })}
-                    className={cn(
-                      'flex h-7 w-7 items-center justify-center rounded border transition-colors',
-                      activeInline.italic
-                        ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-border/60 hover:bg-muted'
-                    )}
-                    title="Italic"
-                  >
-                    <Italic className="h-3.5 w-3.5" />
-                  </button>
-
-                  {/* Quick Color Swatches */}
-                  <div className="flex items-center gap-1 pl-0.5 pr-1">
-                    {PRESET_COLORS.slice(0, 4).map((c) => (
-                      <button
-                        key={c.label}
-                        type="button"
-                        onClick={() => setActiveInline({ ...activeInline, color: c.rgb })}
-                        className={cn(
-                          'h-4.5 w-4.5 rounded-full border border-border/40 transition-transform',
-                          activeInline.color.r === c.rgb.r &&
-                            activeInline.color.g === c.rgb.g &&
-                            activeInline.color.b === c.rgb.b &&
-                            'scale-120 ring-2 ring-primary ring-offset-1'
-                        )}
-                        style={{ backgroundColor: c.hex }}
-                        title={c.label}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Commit Button */}
-                  <Button
-                    size="sm"
-                    onClick={commitActiveInline}
-                    className="h-7 px-2 text-[11px] font-medium gap-1"
-                  >
-                    <Check className="h-3 w-3" />
-                    Done
-                  </Button>
-                </div>
-
-                {/* Direct In-Place Input */}
-                <input
-                  ref={inlineInputRef}
-                  type="text"
-                  value={activeInline.text}
-                  onChange={(e) => setActiveInline({ ...activeInline, text: e.target.value })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      commitActiveInline()
-                    } else if (e.key === 'Escape') {
-                      setActiveInline(null)
-                    }
-                  }}
-                  className="rounded-[2px] border border-primary px-1 py-0 shadow-sm outline-hidden ring-2 ring-primary/30"
-                  style={{
-                    minWidth: `${Math.max(activeInline.canvasW, 80)}px`,
-                    height: `${Math.max(activeInline.canvasH, 20)}px`,
-                    fontFamily:
-                      activeInline.fontFamily === 'TimesRoman'
-                        ? '"Times New Roman", Times, Georgia, serif'
-                        : activeInline.fontFamily === 'Courier'
-                        ? '"Courier New", Courier, monospace'
-                        : 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                    fontSize: `${activeInline.fontSize * (pageDim.width / pageDim.pdfWidth)}px`,
-                    fontWeight: activeInline.bold ? '700' : '400',
-                    fontStyle: activeInline.italic ? 'italic' : 'normal',
-                    color: `rgb(${activeInline.color.r}, ${activeInline.color.g}, ${activeInline.color.b})`,
-                    backgroundColor: `rgb(${activeInline.whiteoutColor.r}, ${activeInline.whiteoutColor.g}, ${activeInline.whiteoutColor.b})`,
-                  }}
-                />
-              </div>
+              />
             )}
           </div>
 
@@ -946,88 +963,86 @@ export function EditTextView({ file, onResultChange }: EditTextViewProps) {
           <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
             <HelpCircle className="h-3.5 w-3.5" />
             <span>
-              Click any text on the page to edit directly in-place in matching font. Press <kbd className="font-mono text-[10px] bg-muted px-1 rounded">Enter</kbd> to save.
+              Click any text on the page to edit directly. Press <kbd className="font-mono text-[10px] bg-muted px-1 rounded">Enter</kbd> or click outside to save.
             </span>
           </div>
         </div>
 
-        {/* Sidebar: Edits History & Detail Inspector */}
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-4 shadow-xs">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2">
-              <div className="flex items-center gap-2">
-                <Type className="h-4 w-4 text-primary" />
-                <h4 className="text-xs font-semibold text-foreground">
-                  Applied Edits ({edits.length})
-                </h4>
-              </div>
-              {edits.length > 0 && (
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  Active
-                </span>
-              )}
+        {/* Sidebar: Edits History List */}
+        <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-3.5 shadow-xs">
+          <div className="flex items-center justify-between border-b border-border/60 pb-2">
+            <div className="flex items-center gap-1.5">
+              <Type className="h-4 w-4 text-primary" />
+              <h4 className="text-xs font-semibold text-foreground">
+                Edits ({edits.length})
+              </h4>
             </div>
-
-            {edits.length === 0 ? (
-              <div className="py-6 text-center text-xs text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground">No edits on document</p>
-                <p className="text-[11px] text-muted-foreground/80">
-                  Click any word or line on the PDF canvas to edit it in-place.
-                </p>
-              </div>
-            ) : (
-              <div className="max-h-[380px] space-y-2 overflow-y-auto pr-1">
-                {edits.map((edit) => (
-                  <div
-                    key={edit.id}
-                    onClick={() => {
-                      setCurrentPage(edit.page + 1)
-                      const item = currentTextItems.find((t) => Math.abs(t.x - edit.x) < 2)
-                      if (item) handleSelectTextItem(item)
-                    }}
-                    className="flex items-start justify-between rounded-lg border border-border/60 bg-muted/20 p-2.5 text-xs transition-colors hover:border-border cursor-pointer"
-                  >
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                        <span className="font-semibold text-foreground">Pg {edit.page + 1}</span>
-                        <span>•</span>
-                        <span>{edit.fontFamily}</span>
-                        <span>•</span>
-                        <span>{edit.size}pt</span>
-                        {edit.bold && <span>• Bold</span>}
-                      </div>
-
-                      {edit.originalText && (
-                        <div className="text-[11px] text-muted-foreground line-through truncate">
-                          "{edit.originalText}"
-                        </div>
-                      )}
-
-                      <div className="font-medium text-foreground truncate">
-                        {edit.text ? (
-                          <span>"{edit.text}"</span>
-                        ) : (
-                          <span className="italic text-muted-foreground">(Erased)</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemoveEdit(edit.id)
-                      }}
-                      className="ml-2 shrink-0 p-1 text-muted-foreground hover:text-destructive"
-                      title="Revert edit"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+            {edits.length > 0 && (
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                Active
+              </span>
             )}
           </div>
+
+          {edits.length === 0 ? (
+            <div className="py-8 text-center text-xs text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">Direct Text Editing</p>
+              <p className="text-[11px] text-muted-foreground/80">
+                Click any word on the document to edit it directly.
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+              {edits.map((edit) => (
+                <div
+                  key={edit.id}
+                  onClick={() => {
+                    setCurrentPage(edit.page + 1)
+                    const item = currentTextItems.find((t) => Math.abs(t.x - edit.x) < 2)
+                    if (item) handleSelectTextItem(item)
+                  }}
+                  className="flex items-start justify-between rounded-lg border border-border/60 bg-muted/20 p-2 text-xs transition-colors hover:border-border cursor-pointer"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span className="font-semibold text-foreground">Pg {edit.page + 1}</span>
+                      <span>•</span>
+                      <span>{edit.fontFamily}</span>
+                      <span>•</span>
+                      <span>{edit.size}pt</span>
+                      {edit.bold && <span>• Bold</span>}
+                    </div>
+
+                    {edit.originalText && (
+                      <div className="text-[11px] text-muted-foreground line-through truncate">
+                        "{edit.originalText}"
+                      </div>
+                    )}
+
+                    <div className="font-medium text-foreground truncate">
+                      {edit.text ? (
+                        <span>"{edit.text}"</span>
+                      ) : (
+                        <span className="italic text-muted-foreground">(Erased)</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemoveEdit(edit.id)
+                    }}
+                    className="ml-2 shrink-0 p-1 text-muted-foreground hover:text-destructive"
+                    title="Revert edit"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

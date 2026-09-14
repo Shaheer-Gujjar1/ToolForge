@@ -136,7 +136,7 @@ export function HomeView({ onNavigate, categoryFilter, onOpenSearch }: HomeViewP
         {/* 0. Hero Section (Controlled 4-element stack) */}
         <section className="mb-10 text-center sm:mb-14">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: [0.2, 0, 0, 1] }}
             className="flex flex-col items-center"
@@ -329,7 +329,7 @@ export function HomeView({ onNavigate, categoryFilter, onOpenSearch }: HomeViewP
         {/* 3. Results List */}
         {filtered.length > 0 ? (
           viewMode === 'grid' || activeCategory !== 'all' ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((tool, i) => (
                 <ToolCard
                   key={tool.id}
@@ -363,7 +363,7 @@ export function HomeView({ onNavigate, categoryFilter, onOpenSearch }: HomeViewP
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
                       {catTools.map((tool, i) => (
                         <ToolCard
                           key={tool.id}

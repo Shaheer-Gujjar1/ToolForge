@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 
 export interface PhotoEditorResult {
@@ -409,7 +410,7 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
   // Transform mode is click-to-apply; resize inputs bake on Apply.
   const [resizeW, setResizeW] = React.useState<number | ''>('')
   const [resizeH, setResizeH] = React.useState<number | ''>('')
-  const [lockAspect, setLockAspect] = React.useState(true)
+  const [maintainAspect, setMaintainAspect] = React.useState(true)
 
   // Draw/shapes settings.
   const [brushColor, setBrushColor] = React.useState('#ef4444')
@@ -507,6 +508,15 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
 
   const baseW = ready ? dims.w : 0
   const baseH = ready ? dims.h : 0
+
+  React.useEffect(() => {
+    if (mode === 'resize' && baseW > 0 && baseH > 0) {
+      if (resizeW === '' || resizeH === '') {
+        setResizeW(baseW)
+        setResizeH(baseH)
+      }
+    }
+  }, [mode, baseW, baseH, resizeW, resizeH])
 
   // Display geometry: canvas shows base + frame, fitted into the container.
   const geom = React.useMemo(() => {
@@ -1343,45 +1353,99 @@ export function PhotoEditorView({ file, onChange }: PhotoEditorViewProps) {
       )}
 
       {mode === 'resize' && (
-        <div className="rounded-2xl border border-border/70 bg-secondary/40 p-4">
-          <div className="flex flex-wrap items-end gap-3">
+        <div className="rounded-2xl border border-border/70 bg-secondary/40 p-4 space-y-3.5">
+          <div className="flex flex-wrap items-end gap-3.5">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Width (px)</Label>
+              <Label className="text-xs font-semibold text-foreground">Width (px)</Label>
               <Input
                 type="number"
-                className="h-9 w-32"
+                className="h-9 w-32 rounded-xl font-mono text-sm"
                 value={resizeW}
                 min={1}
+                max={20000}
+                placeholder={String(baseW)}
                 onChange={(e) => {
-                  const v = e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value) || 1))
-                  setResizeW(v)
-                  if (lockAspect && typeof v === 'number' && baseW > 0) setResizeH(Math.max(1, Math.round((v / baseW) * baseH)))
+                  const val = e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value) || 1))
+                  setResizeW(val)
+                  if (maintainAspect && typeof val === 'number' && baseW > 0) {
+                    setResizeH(Math.max(1, Math.round((val / baseW) * baseH)))
+                  }
                 }}
               />
             </div>
+
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Height (px)</Label>
+              <Label className="text-xs font-semibold text-foreground">Height (px)</Label>
               <Input
                 type="number"
-                className="h-9 w-32"
+                className="h-9 w-32 rounded-xl font-mono text-sm"
                 value={resizeH}
                 min={1}
+                max={20000}
+                placeholder={String(baseH)}
                 onChange={(e) => {
-                  const v = e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value) || 1))
-                  setResizeH(v)
-                  if (lockAspect && typeof v === 'number' && baseH > 0) setResizeW(Math.max(1, Math.round((v / baseH) * baseW)))
+                  const val = e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value) || 1))
+                  setResizeH(val)
+                  if (maintainAspect && typeof val === 'number' && baseH > 0) {
+                    setResizeW(Math.max(1, Math.round((val / baseH) * baseW)))
+                  }
                 }}
               />
             </div>
-            <div className="flex items-center gap-2 pb-1">
-              <Switch checked={lockAspect} onCheckedChange={setLockAspect} id="pe-lock" />
-              <Label htmlFor="pe-lock" className="text-xs text-muted-foreground">Lock aspect ratio</Label>
+
+            {/* Maintain Aspect Ratio checkbox (matching iLoveIMG) */}
+            <div className="flex items-center gap-2 pb-2">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-foreground">
+                <Checkbox
+                  checked={maintainAspect}
+                  onCheckedChange={(checked) => {
+                    const isChecked = checked === true
+                    setMaintainAspect(isChecked)
+                    if (isChecked && typeof resizeW === 'number' && baseW > 0 && baseH > 0) {
+                      setResizeH(Math.max(1, Math.round((resizeW / baseW) * baseH)))
+                    }
+                  }}
+                  id="pe-maintain-aspect"
+                />
+                <span>Maintain aspect ratio</span>
+              </label>
             </div>
-            <Button size="sm" className="gap-1.5" onClick={applyResize}>
+
+            <Button size="sm" className="h-9 gap-1.5 font-semibold" onClick={applyResize}>
               <Check className="h-3.5 w-3.5" /> Apply resize
             </Button>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Current size: {baseW} x {baseH} px. The preview updates after applying.</p>
+
+          {/* Quick scale presets (matching iLoveIMG resize tools) */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
+            <span className="text-[11px] font-medium text-muted-foreground mr-1">Quick scale:</span>
+            {[0.25, 0.5, 0.75, 1, 1.5, 2].map((scale) => (
+              <button
+                key={scale}
+                type="button"
+                onClick={() => {
+                  if (baseW > 0 && baseH > 0) {
+                    setResizeW(Math.max(1, Math.round(baseW * scale)))
+                    setResizeH(Math.max(1, Math.round(baseH * scale)))
+                  }
+                }}
+                className={cn(
+                  'rounded-lg px-2.5 py-1 text-[11px] font-medium border border-border/60 bg-card hover:border-primary/50 transition-colors',
+                  typeof resizeW === 'number' && resizeW === Math.round(baseW * scale) && 'border-primary bg-primary/10 text-primary font-semibold'
+                )}
+              >
+                {scale === 1 ? '100% (Original)' : `${scale * 100}%`}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            Current size: <span className="font-mono font-medium text-foreground">{baseW} × {baseH} px</span>
+            {baseW > 0 && baseH > 0 && (
+              <span className="ml-1.5 font-mono">({(baseW / baseH).toFixed(2)} : 1)</span>
+            )}
+            . Changes apply to the canvas when you hit Apply resize.
+          </p>
         </div>
       )}
 

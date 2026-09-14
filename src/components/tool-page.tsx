@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   X,
   ArrowDown,
+  Lock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +37,7 @@ import { PdfToImageView, type PdfToImagesConfig } from '@/components/tools/pdf-t
 import { WordToPdfView, type WordFile } from '@/components/tools/word-to-pdf-view'
 import { HtmlToPdfView, type HtmlToPdfConfig } from '@/components/tools/html-to-pdf-view'
 import { HtmlToImageView, type HtmlToImageConfig } from '@/components/tools/html-to-image-view'
+import * as htmlToImage from 'html-to-image'
 import { PhotoEditorView, type PhotoEditorResult } from '@/components/tools/photo-editor-view'
 import { PdfToExcelView } from '@/components/tools/pdf-to-excel-view'
 import { PageNumbersPreview } from '@/components/tools/page-numbers-preview'
@@ -382,35 +384,51 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
         // Wait for content to render (fonts, images, layout)
         await new Promise((r) => setTimeout(r, 1200))
 
-        await ensureHtml2Canvas()
-        const h2c = (window as any).html2canvas
+        const body = iframeDoc.body
+        const html = iframeDoc.documentElement
+        const contentH = Math.max(
+          body ? body.scrollHeight : 0,
+          body ? body.offsetHeight : 0,
+          html ? html.clientHeight : 0,
+          html ? html.scrollHeight : 0,
+          html ? html.offsetHeight : 0,
+          100
+        )
 
-        // documentElement.scrollHeight is floored at the iframe viewport
-        // height, which would add dead whitespace below short snippets.
-        // When the root measures exactly one viewport tall, prefer the
-        // body's true content height instead.
-        const rootEl = iframeDoc.documentElement
-        const bodyEl = iframeDoc.body
-        const bodyH = bodyEl
-          ? Math.max(bodyEl.scrollHeight, Math.ceil(bodyEl.getBoundingClientRect().height))
-          : 0
-        const docH = rootEl.scrollHeight
-        const contentH = docH > bodyH && docH === rootEl.clientHeight
-          ? Math.max(bodyH, 1)
-          : Math.max(docH, bodyH, 1)
-        console.log('[html-to-image] Capturing iframe content:', SCREEN_W, 'x', contentH, 'at', SCALE + 'x')
+        // Size iframe to fit the exact rendered content
+        iframe.style.width = `${SCREEN_W}px`
+        iframe.style.height = `${contentH}px`
 
-        const canvas = await h2c(iframeDoc.documentElement, {
-          scale: SCALE,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: transparent ? null : '#ffffff',
-          width: SCREEN_W,
-          height: contentH,
-          windowWidth: SCREEN_W,
-        })
+        let blob: Blob | null = null
+        try {
+          console.log('[html-to-image] Rendering via html-to-image (SVG native engine):', SCREEN_W, 'x', contentH, 'scale', SCALE)
+          const targetNode = iframeDoc.documentElement || iframeDoc.body
+          const canvas = await htmlToImage.toCanvas(targetNode, {
+            width: SCREEN_W,
+            height: contentH,
+            canvasWidth: SCREEN_W * SCALE,
+            canvasHeight: contentH * SCALE,
+            pixelRatio: SCALE,
+            backgroundColor: transparent ? undefined : '#ffffff',
+            skipFonts: false,
+          })
+          blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, mime, htmlImageConfig.quality))
+        } catch (err) {
+          console.warn('[html-to-image] Primary engine encountered issue, falling back to html2canvas:', err)
+          await ensureHtml2Canvas()
+          const h2c = (window as any).html2canvas
+          const canvas = await h2c(iframeDoc.documentElement, {
+            scale: SCALE,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: transparent ? null : '#ffffff',
+            width: SCREEN_W,
+            height: contentH,
+            windowWidth: SCREEN_W,
+          })
+          blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, mime, htmlImageConfig.quality))
+        }
 
-        const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, mime, htmlImageConfig.quality))
         if (!blob) throw new Error('Could not encode the image — try a smaller render width or scale.')
         // Browsers silently fall back on unsupported encoders (e.g. WebP → PNG
         // on Safari) — trust the actual blob type for extension + mime.
@@ -985,18 +1003,15 @@ export function ToolPage({ tool, onNavigate, onBack }: ToolPageProps) {
             </Badge>
           )}
           {tool.tag && (
-            <Badge
-              variant={tool.tag.toLowerCase() === 'perfect' ? 'secondary' : 'default'}
-              className={cn(
-                'rounded-full font-mono text-[10px] uppercase tracking-wider',
-                tool.tag.toLowerCase() === 'perfect'
-                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                  : ''
-              )}
+            <Badge className="rounded-full font-mono text-[10px] uppercase tracking-wider">{tool.tag}</Badge>
+          )}
+          {tool.locked && (
+            <span
+              title="Production verified"
+              className="inline-flex items-center rounded-full bg-emerald-500/10 p-1 text-emerald-600 dark:text-emerald-400"
             >
-              {tool.tag.toLowerCase() === 'perfect' && <Sparkles className="mr-1 h-3 w-3" />}
-              {tool.tag}
-            </Badge>
+              <Lock className="h-3 w-3" />
+            </span>
           )}
           {preview && !isMorseCode && !isRandomText && !isTransparentPng && (
             <Badge variant="outline" className="rounded-full border-amber-500/40 text-amber-600 dark:text-amber-400 font-mono text-[10px]">

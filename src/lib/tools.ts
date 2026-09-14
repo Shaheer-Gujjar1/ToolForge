@@ -33,6 +33,10 @@ import {
   Radio,
   FileText,
   Pipette,
+  Binary,
+  FileCode,
+  GraduationCap,
+  Dices,
 } from "lucide-react";
 
 export type ToolCategory =
@@ -537,7 +541,6 @@ export const tools: Tool[] = [
     accent: "teal",
     batch: false,
     step: 7,
-    tag: "Perfect",
     locked: true,
   },
   {
@@ -550,7 +553,54 @@ export const tools: Tool[] = [
     accent: "fuchsia",
     batch: false,
     step: 7,
-    tag: "Perfect",
+    locked: true,
+  },
+  {
+    id: "ascii-converter",
+    name: "ASCII Converter",
+    description:
+      "Universal 2-way ASCII encoding studio. Convert text to ASCII decimal, binary, hexadecimal, octal, Base64, and generate FIGlet ASCII banner art with live bidirectional sync.",
+    category: "utility",
+    icon: Binary,
+    accent: "violet",
+    batch: false,
+    step: 7,
+    locked: true,
+  },
+  {
+    id: "remove-comments",
+    name: "Code Comments Remover",
+    description:
+      "Strip single-line, multi-line, docstrings, and HTML comments from C, C++, C#, CSS, HTML, Java, JavaScript, MATLAB, PHP, Python, Ruby, SQL, Swift, Kotlin, TypeScript, R, Go, and more.",
+    category: "utility",
+    icon: FileCode,
+    accent: "emerald",
+    batch: false,
+    step: 7,
+    locked: true,
+  },
+  {
+    id: "ielts-pte-converter",
+    name: "IELTS, PTE & Cambridge Converter",
+    description:
+      "Bidirectional score converter between IELTS Band (0-9), PTE Academic (10-90), Cambridge English Scale (CBE / CAE / FCE), and CEFR proficiency levels with visa benchmarks.",
+    category: "utility",
+    icon: GraduationCap,
+    accent: "teal",
+    batch: false,
+    step: 7,
+    locked: true,
+  },
+  {
+    id: "truth-or-dare",
+    name: "Truth or Dare Generator",
+    description:
+      "Authentic party truths and dares that people actually play. Draw 1 to 5 prompts at once, filter by Juicy, Party, Embarrassing, Deep, or Casual with turn tracking.",
+    category: "utility",
+    icon: Dices,
+    accent: "rose",
+    batch: false,
+    step: 7,
     locked: true,
   },
 ];

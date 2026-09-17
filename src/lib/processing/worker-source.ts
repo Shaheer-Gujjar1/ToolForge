@@ -2132,10 +2132,11 @@ processors['edit-text'] = async function (inputs, opts, onProgress, log) {
           font: font,
           size: Math.max(4, edit.size || 11),
           color: textColor,
+          lineHeight: Math.round(Math.max(4, edit.size || 11) * 1.25),
         });
       }
     }
-    var bytes = await doc.save({ useObjectStreams: true });
+    var bytes = await doc.save();
     out.push({ name: stripExt(inputs[i].fileName) + '-edited.pdf', data: toArrayBuffer(bytes), mime: 'application/pdf', note: edits.length + ' edit(s)' });
     onProgress((i + 1) / inputs.length);
   }

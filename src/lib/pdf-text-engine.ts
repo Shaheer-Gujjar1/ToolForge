@@ -22,6 +22,7 @@ export interface DetectedTextItem {
   color: { r: number; g: number; b: number } // 0..255
   source: 'native' | 'ocr'
   confidence?: number // 0..100 for OCR
+  align?: 'left' | 'center' | 'right'
 }
 
 export interface PdfEditItem {
@@ -35,6 +36,9 @@ export interface PdfEditItem {
   bold: boolean
   italic: boolean
   color: { r: number; g: number; b: number }
+  width?: number
+  height?: number
+  align?: 'left' | 'center' | 'right'
   whiteout?: {
     x: number
     y: number
@@ -43,6 +47,14 @@ export interface PdfEditItem {
   }
   whiteoutColor?: { r: number; g: number; b: number }
   originalText?: string
+  originalBounds?: {
+    x: number
+    y: number
+    w: number
+    h: number
+  }
+  isErased?: boolean
+  isRedaction?: boolean
 }
 
 /**
@@ -51,7 +63,9 @@ export interface PdfEditItem {
  */
 export function classifyPdfFont(
   rawFontName: string = '',
-  rawFamily: string = ''
+  rawFamily: string = '',
+  explicitBold?: boolean,
+  explicitItalic?: boolean
 ): {
   fontFamily: StandardPdfFontFamily
   bold: boolean
@@ -62,23 +76,41 @@ export function classifyPdfFont(
 
   // Detect style attributes
   const bold =
+    Boolean(explicitBold) ||
     combined.includes('bold') ||
     combined.includes('black') ||
     combined.includes('heavy') ||
     combined.includes('semibold') ||
+    combined.includes('demibold') ||
     combined.includes('demi') ||
+    combined.includes('boldmt') ||
+    combined.includes('bolder') ||
     combined.includes('-b') ||
     combined.includes(',b') ||
+    combined.includes('_b') ||
+    combined.includes('+b') ||
+    combined.includes('-bd') ||
+    combined.includes(',bd') ||
     combined.includes('700') ||
     combined.includes('800') ||
-    combined.includes('900')
+    combined.includes('900') ||
+    combined.includes('w6') ||
+    combined.includes('w7') ||
+    combined.includes('w8') ||
+    combined.includes('w9')
 
   const italic =
+    Boolean(explicitItalic) ||
     combined.includes('italic') ||
     combined.includes('oblique') ||
     combined.includes('slanted') ||
+    combined.includes('italicmt') ||
     combined.includes('-i') ||
-    combined.includes(',i')
+    combined.includes(',i') ||
+    combined.includes('_i') ||
+    combined.includes('+i') ||
+    combined.includes('-it') ||
+    combined.includes(',it')
 
   // Detect family
   let fontFamily: StandardPdfFontFamily = 'Helvetica'
@@ -187,6 +219,48 @@ export function sampleCanvasColor(
     }
   } catch {
     return mode === 'background' ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 }
+  }
+}
+
+/**
+ * Estimate if a text bounding box on canvas has heavy ink density (indicating bold weight)
+ */
+export function detectCanvasInkDensity(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): { isBold: boolean; density: number } {
+  try {
+    const pad = 1
+    const sx = Math.max(0, Math.floor(x - pad))
+    const sy = Math.max(0, Math.floor(y - pad))
+    const sw = Math.min(ctx.canvas.width - sx, Math.ceil(w + pad * 2))
+    const sh = Math.min(ctx.canvas.height - sy, Math.ceil(h + pad * 2))
+
+    if (sw <= 2 || sh <= 2) return { isBold: false, density: 0 }
+
+    const imgData = ctx.getImageData(sx, sy, sw, sh)
+    const data = imgData.data
+    let darkCount = 0
+    let totalPixels = 0
+
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] > 120) {
+        totalPixels++
+        const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+        if (luma < 165) {
+          darkCount++
+        }
+      }
+    }
+
+    const density = totalPixels > 0 ? darkCount / totalPixels : 0
+    // Density > 26% on text bounding box indicates bold/heavy weight
+    return { isBold: density > 0.26, density }
+  } catch {
+    return { isBold: false, density: 0 }
   }
 }
 
